@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
-import { useAnalytics, authorName } from '../query/useAnalytics';
+import { useAnalytics } from '../query/useAnalytics';
 import { byDay, byDayAndAuthor, aggregateByGranularity, pickGranularity } from '../query/selectors';
 import {
   ActivityCalendar,
@@ -37,7 +37,7 @@ export function Global() {
   const overviewCount = useAppStore((state) => state.dataset.overviews.size);
   const [showTable, setShowTable] = useState(false);
 
-  const { buckets, totals, authors, projects, palette, authorColors, authorsById, projectsById, extent } =
+  const { buckets, totals, authors, projects, palette, authorColors, projectsById, extent, labelOf } =
     analytics;
 
   // Le calendrier reste TOUJOURS journalier : c'est tout son intérêt. Seules les
@@ -61,10 +61,10 @@ export function Global() {
     () =>
       authors.slice(0, 15).map((entry) => ({
         id: entry.authorId,
-        label: authorName(authorsById, entry.authorId),
+        label: labelOf(entry.authorId),
         value: entry.commits,
       })),
-    [authors, authorsById],
+    [authors, labelOf],
   );
 
   const treemapItems = useMemo(
@@ -95,11 +95,11 @@ export function Global() {
       key: 'author',
       header: 'Contributeur',
       width: 'minmax(200px, 2fr)',
-      sortValue: (row) => authorName(authorsById, row.authorId),
+      sortValue: (row) => labelOf(row.authorId),
       render: (row) => (
         <span className="flex items-center gap-2">
           <SeriesDot color={authorColors.colorOf(row.authorId)} />
-          <span className="truncate text-[var(--text-primary)]">{authorName(authorsById, row.authorId)}</span>
+          <span className="truncate text-[var(--text-primary)]">{labelOf(row.authorId)}</span>
         </span>
       ),
     },
@@ -220,7 +220,7 @@ export function Global() {
           days={timeline.days}
           series={timeline.series}
           colors={authorColors}
-          nameOf={(id) => authorName(authorsById, id)}
+          nameOf={labelOf}
           palette={palette}
           granularity={timeline.granularity}
           stale={isSyncing}

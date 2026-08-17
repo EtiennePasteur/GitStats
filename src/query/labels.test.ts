@@ -20,8 +20,10 @@ describe('disambiguateLabels', () => {
       entry('a.riviere@example.com', 'Amélie Rivière'),
       entry('ariviere@example.org', 'Amélie Rivière'),
     ]);
-    expect(labels.get('a.riviere@example.com')).toBe('Amélie Rivière (a.riviere@example.com)');
-    expect(labels.get('ariviere@example.org')).toBe('Amélie Rivière (ariviere@example.org)');
+    // Le login suffit à départager : l'adresse complète se ferait tronquer dans
+    // une légende ou une barre de classement.
+    expect(labels.get('a.riviere@example.com')).toBe('Amélie Rivière (a.riviere)');
+    expect(labels.get('ariviere@example.org')).toBe('Amélie Rivière (ariviere)');
     expect(new Set(labels.values()).size).toBe(2);
   });
 
@@ -41,6 +43,22 @@ describe('disambiguateLabels', () => {
     ]);
     expect(labels.get('un')).toBe('Amélie Rivière');
     expect(labels.get('deux')).toBe('Amélie Rivière');
+  });
+
+  it('déplie l\'adresse quand deux homonymes partagent aussi leur login', () => {
+    // Même état civil, même identifiant, deux domaines : c'est précisément l'un
+    // des rapprochements que les réglages proposent, donc un cas réel.
+    const labels = disambiguateLabels([
+      entry('a.riviere@example.com', 'Amélie Rivière'),
+      entry('a.riviere@example.org', 'Amélie Rivière'),
+    ]);
+    expect(labels.get('a.riviere@example.com')).toBe('Amélie Rivière (a.riviere@example.com)');
+    expect(labels.get('a.riviere@example.org')).toBe('Amélie Rivière (a.riviere@example.org)');
+  });
+
+  it('accepte un indice qui n\'est pas une adresse', () => {
+    const labels = disambiguateLabels([entry('un', 'Bot', 'ci-runner'), entry('deux', 'Bot', 'ci-worker')]);
+    expect(labels.get('un')).toBe('Bot (ci-runner)');
   });
 
   it('couvre trois homonymes', () => {

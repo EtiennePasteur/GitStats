@@ -19,21 +19,39 @@ export interface LabelInput {
   hint: string | null;
 }
 
+/** `a.riviere@example.com` → `a.riviere`. Sans arobase, l'indice entier. */
+function localPart(hint: string): string {
+  const at = hint.indexOf('@');
+  return at > 0 ? hint.slice(0, at) : hint;
+}
+
 export function disambiguateLabels(entries: readonly LabelInput[]): Map<string, string> {
-  const collisions = new Map<string, number>();
+  const groups = new Map<string, LabelInput[]>();
   for (const entry of entries) {
-    collisions.set(entry.name, (collisions.get(entry.name) ?? 0) + 1);
+    const group = groups.get(entry.name);
+    if (group === undefined) groups.set(entry.name, [entry]);
+    else group.push(entry);
   }
 
   const labels = new Map<string, string>();
-  for (const entry of entries) {
-    const ambiguous = (collisions.get(entry.name) ?? 0) > 1;
-    // Sans indice utilisable, mieux vaut le nom nu qu'une parenthèse vide : la
-    // série reste ambiguë, mais l'étiquette n'est pas dégradée pour rien.
-    labels.set(
-      entry.id,
-      ambiguous && entry.hint !== null && entry.hint !== '' ? `${entry.name} (${entry.hint})` : entry.name,
-    );
+  for (const [name, group] of groups) {
+    const usable = group.filter((entry) => entry.hint !== null && entry.hint !== '');
+    // Le login suffit presque toujours à départager, et tient dans une légende
+    // ou une barre de classement là où l'adresse complète se ferait tronquer.
+    // On ne déplie l'adresse que si deux homonymes partagent aussi leur login,
+    // sur deux domaines différents — le cas existe.
+    const locals = usable.map((entry) => localPart(entry.hint!));
+    const shortEnough = new Set(locals).size === locals.length;
+
+    for (const entry of group) {
+      // Sans indice utilisable, mieux vaut le nom nu qu'une parenthèse vide : la
+      // série reste ambiguë, mais l'étiquette n'est pas dégradée pour rien.
+      const hint = entry.hint !== null && entry.hint !== '' ? entry.hint : null;
+      labels.set(
+        entry.id,
+        group.length > 1 && hint !== null ? `${name} (${shortEnough ? localPart(hint) : hint})` : name,
+      );
+    }
   }
   return labels;
 }

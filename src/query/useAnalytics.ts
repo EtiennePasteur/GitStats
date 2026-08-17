@@ -8,9 +8,10 @@
  * l'entité, pas son rang ».
  */
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useFilterStore, toFilters } from '../store/useFilterStore';
+import { disambiguateLabels } from './labels';
 import {
   filterBuckets,
   computeTotals,
@@ -38,6 +39,8 @@ export interface Analytics {
   palette: Palette;
   /** Attribution stable des couleurs d'auteur (indépendante des filtres). */
   authorColors: ColorAssignment;
+  /** Nom d'une personne, complété de son e-mail si un homonyme existe. */
+  labelOf: (id: string) => string;
   isEmpty: boolean;
 }
 
@@ -98,6 +101,29 @@ export function useAnalytics(): Analytics {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataset, dataVersion, palette, aliases, mergedAuthors]);
 
+  /**
+   * Étiquettes désambiguïsées, calculées sur TOUTES les personnes connues et non
+   * sur le périmètre filtré — même raisonnement que pour les couleurs : le nom
+   * affiché d'une personne ne doit pas changer parce qu'un filtre a fait
+   * disparaître son homonyme. Une légende ECharts étant indexée par le nom de
+   * série, deux homonymes s'y replieraient sinon sur une seule entrée.
+   */
+  const authorLabels = useMemo(
+    () =>
+      disambiguateLabels(
+        [...mergedAuthors.values()].map((author) => ({
+          id: author.id,
+          name: author.displayName,
+          hint: author.primaryEmail,
+        })),
+      ),
+    [mergedAuthors],
+  );
+  const labelOf = useCallback(
+    (id: string) => authorLabels.get(id) ?? authorName(mergedAuthors, id),
+    [authorLabels, mergedAuthors],
+  );
+
   const buckets = useMemo(
     () => filterBuckets(dataset.daily.values(), filters, mergedAuthors, dataset.projects, aliases),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +159,7 @@ export function useAnalytics(): Analytics {
     namespaces,
     palette,
     authorColors,
+    labelOf,
     isEmpty: dataset.daily.size === 0,
   };
 }
