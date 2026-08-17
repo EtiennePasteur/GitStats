@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useAnalytics, authorName } from '../query/useAnalytics';
+import { useAnalytics } from '../query/useAnalytics';
 import { useAppStore } from '../store/useAppStore';
 import { byDay, byDayAndAuthor, pickGranularity, type ProjectStats } from '../query/selectors';
 import { DataTable, type Column } from '../components/DataTable';
@@ -182,7 +182,7 @@ export function ProjectDetail() {
   const navigate = useNavigate();
   const projectKeyParam = params.key ?? '';
   const analytics = useAnalytics();
-  const { projectsById, authorsById, authorColors, palette, buckets } = analytics;
+  const { projectsById, authorColors, palette, buckets, labelOf } = analytics;
   const dataset = useAnalyticsDataset();
   const instances = useAppStore((state) => state.instances);
 
@@ -277,7 +277,7 @@ export function ProjectDetail() {
             days={timeline.days}
             series={timeline.series}
             colors={authorColors}
-            nameOf={(id) => authorName(authorsById, id)}
+            nameOf={labelOf}
             palette={palette}
             granularity={timeline.granularity}
           />
@@ -287,7 +287,7 @@ export function ProjectDetail() {
           <RankingBars
             items={rankedAuthorIds.slice(0, 12).map((id) => ({
               id,
-              label: authorName(authorsById, id),
+              label: labelOf(id),
               value: stats.authors.get(id) ?? 0,
             }))}
             palette={palette}
@@ -321,8 +321,11 @@ export function ProjectDetail() {
                   {commit.shortSha}
                 </a>
                 <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{commit.title}</span>
-                <span className="shrink-0 truncate text-xs text-[var(--text-muted)]">
-                  {authorName(authorsById, commit.authorId)}
+                <span
+                  className="shrink-0 truncate text-xs text-[var(--text-muted)]"
+                  title={labelOf(commit.authorId)}
+                >
+                  {labelOf(commit.authorId)}
                 </span>
                 {!commit.isMerge && (
                   <span className="tnum shrink-0 text-xs">

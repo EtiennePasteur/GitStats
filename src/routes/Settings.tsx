@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { useAnalytics, authorName } from '../query/useAnalytics';
+import { useAnalytics } from '../query/useAnalytics';
 import { InstanceManager } from '../components/InstanceManager';
 import { detectMirrors, suggestExclusions } from '../sync/mirrors';
 import { suggestMerges, type MergeSuggestion, type MergeKind } from '../sync/identity';
@@ -350,7 +350,7 @@ function IdentityMerger({
   onDone: (message: string) => void;
   setManualAliases: (aliases: Record<string, string>) => Promise<void>;
 }) {
-  const { authorsById, authors: authorStats } = useAnalytics();
+  const { authorsById, authors: authorStats, labelOf } = useAnalytics();
   const meta = useAppStore((state) => state.dataset.meta);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<MergeKind>>(new Set());
@@ -385,7 +385,7 @@ function IdentityMerger({
   const apply = (from: string, to: string) => {
     void setManualAliases({ ...aliases, [from]: to }).then(() =>
       // La fusion est résolue à la lecture : elle est visible tout de suite.
-      onDone(`Fusion appliquée — « ${authorName(authorsById, from)} » rejoint « ${authorName(authorsById, to)} ».`),
+      onDone(`Fusion appliquée — « ${labelOf(from)} » rejoint « ${labelOf(to)} ».`),
     );
   };
 
@@ -583,7 +583,7 @@ function IdentityMerger({
                     setManualQuery('');
                   }}
                 >
-                  {authorName(authorsById, id)}
+                  {labelOf(id)}
                 </Button>
               );
             })}
@@ -604,7 +604,7 @@ function IdentityMerger({
               <li key={from} className="flex items-center gap-2 text-sm">
                 <code className="min-w-0 truncate text-xs text-[var(--text-muted)]">{from}</code>
                 <span className="shrink-0 text-[var(--text-muted)]">→</span>
-                <span className="min-w-0 truncate text-xs">{authorName(authorsById, to)}</span>
+                <span className="min-w-0 truncate text-xs" title={labelOf(to)}>{labelOf(to)}</span>
                 <Button variant="subtle" className="ml-auto shrink-0" onClick={() => undo(from)}>
                   Annuler
                 </Button>

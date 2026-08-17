@@ -8,11 +8,10 @@
  * du polygone.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAnalytics, authorName } from '../query/useAnalytics';
 import { byDayAndAuthor, pickGranularity, fillDays } from '../query/selectors';
 import { toggleSelection, visibleSelection, isSelectionFull } from '../query/selection';
-import { disambiguateLabels } from '../query/labels';
 import { CommitTimeline, CompareRadar } from '../components/charts/charts';
 import { DataTable, type Column } from '../components/DataTable';
 import {
@@ -30,7 +29,7 @@ import type { AuthorStats } from '../query/selectors';
 const MAX_COMPARED = 5;
 
 export function Compare() {
-  const { authors, authorsById, authorColors, palette, buckets, isEmpty } = useAnalytics();
+  const { authors, authorsById, authorColors, palette, buckets, labelOf, isEmpty } = useAnalytics();
   // `null` = l'utilisateur n'a pas encore touché à la sélection ; `[]` = il a
   // tout retiré. Confondre les deux rendait le premier clic inopérant.
   const [selected, setSelected] = useState<string[] | null>(null);
@@ -45,27 +44,6 @@ export function Compare() {
   const effective = useMemo(
     () => visibleSelection(selected, defaultSelection, known),
     [selected, defaultSelection, known],
-  );
-
-  /**
-   * Deux personnes peuvent porter le même nom affiché ; la légende du graphe,
-   * indexée par nom, les confondrait. On calcule les étiquettes sur tout le
-   * périmètre pour que les puces de choix soient discriminantes elles aussi.
-   */
-  const labels = useMemo(
-    () =>
-      disambiguateLabels(
-        authors.map((entry) => ({
-          id: entry.authorId,
-          name: authorName(authorsById, entry.authorId),
-          hint: authorsById.get(entry.authorId)?.primaryEmail ?? null,
-        })),
-      ),
-    [authors, authorsById],
-  );
-  const labelOf = useCallback(
-    (id: string) => labels.get(id) ?? authorName(authorsById, id),
-    [labels, authorsById],
   );
 
   const candidates = useMemo(() => {
