@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toggleSelection, effectiveSelection, isSelectionFull } from './selection';
+import { toggleSelection, effectiveSelection, isSelectionFull, visibleSelection } from './selection';
 
 const DEFAULT = ['a', 'b', 'c'];
 const MAX = 5;
@@ -89,5 +89,38 @@ describe('isSelectionFull', () => {
   it('ne bloque jamais un élément déjà sélectionné, sinon il serait impossible à retirer', () => {
     const full = ['a', 'b', 'c', 'd', 'e'];
     expect(isSelectionFull(full, DEFAULT, 'c', MAX)).toBe(false);
+  });
+});
+
+describe('visibleSelection — les sélections fantômes', () => {
+  const KNOWN = new Set(['a', 'b', 'c', 'z']);
+
+  it('retire du décompte ce qui est sorti du périmètre', () => {
+    // Le bug : filtrer sur un dépôt faisait disparaître les puces de trois
+    // personnes sur cinq, mais l'écran continuait d'annoncer « 5 sélectionnée(s),
+    // 5 maximum » — quota atteint, et rien à cliquer pour le libérer.
+    expect(visibleSelection(['a', 'b', 'disparu'], DEFAULT, KNOWN)).toEqual(['a', 'b']);
+  });
+
+  it('s\'applique aussi à la sélection par défaut', () => {
+    expect(visibleSelection(null, ['a', 'inconnu', 'c'], KNOWN)).toEqual(['a', 'c']);
+  });
+
+  it('libère le quota occupé par les absents', () => {
+    const raw = ['a', 'b', 'c', 'parti1', 'parti2'];
+    expect(isSelectionFull(raw, DEFAULT, 'z', MAX)).toBe(true);
+    // Une fois réconciliée, la sélection ne pèse plus que 3 sur 5 : on peut
+    // encore comparer quelqu'un.
+    const visible = visibleSelection(raw, DEFAULT, KNOWN);
+    expect(isSelectionFull(visible, DEFAULT, 'z', MAX)).toBe(false);
+    expect(toggleSelection(visible, DEFAULT, 'z', MAX)).toEqual(['a', 'b', 'c', 'z']);
+  });
+
+  it('préserve « tout retiré »', () => {
+    expect(visibleSelection([], DEFAULT, KNOWN)).toEqual([]);
+  });
+
+  it('rend une liste vide quand plus rien n\'est connu', () => {
+    expect(visibleSelection(['a', 'b'], DEFAULT, new Set())).toEqual([]);
   });
 });
