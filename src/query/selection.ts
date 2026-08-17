@@ -22,6 +22,24 @@ export function effectiveSelection(
 }
 
 /**
+ * Sélection réellement exploitable : le choix affiché, amputé de ce qui est
+ * sorti du périmètre.
+ *
+ * Une personne choisie puis masquée par un filtre (dépôt, période) n'a plus de
+ * puce à l'écran. La laisser dans la sélection lui ferait occuper une place sur
+ * le maximum autorisé — quota atteint alors que l'utilisateur ne voit que deux
+ * sélections — sans lui donner le moyen de la retirer. Le choix brut, lui,
+ * n'est pas réécrit : il revient si le filtre se rouvre.
+ */
+export function visibleSelection(
+  current: readonly string[] | null,
+  fallback: readonly string[],
+  known: ReadonlySet<string>,
+): string[] {
+  return effectiveSelection(current, fallback).filter((id) => known.has(id));
+}
+
+/**
  * Bascule un identifiant. Le premier clic matérialise le défaut, de sorte que
  * l'action porte toujours sur ce qui est réellement affiché.
  *

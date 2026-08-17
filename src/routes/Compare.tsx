@@ -8,10 +8,11 @@
  * du polygone.
  */
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAnalytics, authorName } from '../query/useAnalytics';
-import { byDayAndAuthor } from '../query/selectors';
-import { toggleSelection, effectiveSelection, isSelectionFull } from '../query/selection';
+import { byDayAndAuthor, pickGranularity, fillDays } from '../query/selectors';
+import { toggleSelection, visibleSelection, isSelectionFull } from '../query/selection';
+import { disambiguateLabels } from '../query/labels';
 import { CommitTimeline, CompareRadar } from '../components/charts/charts';
 import { DataTable, type Column } from '../components/DataTable';
 import {
@@ -39,9 +40,32 @@ export function Compare() {
     () => authors.slice(0, 3).map((entry) => entry.authorId),
     [authors],
   );
+
+  const known = useMemo(() => new Set(authors.map((entry) => entry.authorId)), [authors]);
   const effective = useMemo(
-    () => effectiveSelection(selected, defaultSelection),
-    [selected, defaultSelection],
+    () => visibleSelection(selected, defaultSelection, known),
+    [selected, defaultSelection, known],
+  );
+
+  /**
+   * Deux personnes peuvent porter le même nom affiché ; la légende du graphe,
+   * indexée par nom, les confondrait. On calcule les étiquettes sur tout le
+   * périmètre pour que les puces de choix soient discriminantes elles aussi.
+   */
+  const labels = useMemo(
+    () =>
+      disambiguateLabels(
+        authors.map((entry) => ({
+          id: entry.authorId,
+          name: authorName(authorsById, entry.authorId),
+          hint: authorsById.get(entry.authorId)?.primaryEmail ?? null,
+        })),
+      ),
+    [authors, authorsById],
+  );
+  const labelOf = useCallback(
+    (id: string) => labels.get(id) ?? authorName(authorsById, id),
+    [labels, authorsById],
   );
 
   const candidates = useMemo(() => {
@@ -52,17 +76,19 @@ export function Compare() {
         // Une personne sélectionnée reste toujours visible : la masquer par la
         // recherche la rendrait impossible à désélectionner.
         if (effective.includes(entry.authorId)) return true;
-        const name = authorName(authorsById, entry.authorId).toLowerCase();
+        const name = labelOf(entry.authorId).toLowerCase();
         return name.includes(needle) || entry.authorId.toLowerCase().includes(needle);
       })
       .slice(0, 60);
-  }, [authors, authorsById, query, effective]);
+  }, [authors, labelOf, query, effective]);
 
+  /**
+   * L'ordre d'affichage suit le classement par commits, jamais l'ordre des
+   * clics : le même groupe de personnes doit donner exactement la même pile,
+   * quel que soit l'ordre dans lequel on les a choisies.
+   */
   const compared = useMemo(
-    () =>
-      effective
-        .map((id) => authors.find((entry) => entry.authorId === id))
-        .filter((entry): entry is AuthorStats => entry !== undefined),
+    () => authors.filter((entry) => effective.includes(entry.authorId)),
     [effective, authors],
   );
 
@@ -71,10 +97,36 @@ export function Compare() {
     return buckets.filter((bucket) => ids.has(bucket.authorId));
   }, [buckets, effective]);
 
-  const timeline = useMemo(
-    () => byDayAndAuthor(comparedBuckets, effective),
-    [comparedBuckets, effective],
-  );
+  /**
+   * Le cadre temporel se calcule sur TOUT le périmètre, pas sur les seules
+   * personnes comparées. Sinon changer de personne déplace les bornes de l'axe,
+   * et un écart d'étalement suffisant fait basculer le pas de temps : deux
+   * comparaisons successives ne se lisent plus l'une contre l'autre.
+   */
+  const frame = useMemo(() => {
+    let from: string | null = null;
+    let to: string | null = null;
+    for (const bucket of buckets) {
+      if (from === null || bucket.day < from) from = bucket.day;
+      if (to === null || bucket.day > to) to = bucket.day;
+    }
+    return { from, to };
+  }, [buckets]);
+
+  const timeline = useMemo(() => {
+    if (frame.from === null || frame.to === null) {
+      return { days: [], series: [], granularity: 'day' as const };
+    }
+    return byDayAndAuthor(
+      comparedBuckets,
+      compared.map((entry) => entry.authorId),
+      {
+        from: frame.from,
+        to: frame.to,
+        granularity: pickGranularity(fillDays(frame.from, frame.to).length),
+      },
+    );
+  }, [comparedBuckets, compared, frame]);
 
   const radar = useMemo(() => {
     if (compared.length === 0) return { indicators: [], entries: [] };
@@ -92,15 +144,15 @@ export function Compare() {
       indicators: dimensions.map((dimension) => ({ name: dimension.name, max: 100 })),
       entries: compared.map((entry) => ({
         id: entry.authorId,
-        label: authorName(authorsById, entry.authorId),
+        label: labelOf(entry.authorId),
         values: dimensions.map((dimension, i) => Math.round((dimension.get(entry) / maxima[i]!) * 100)),
         raw: dimensions.map((dimension) => dimension.get(entry)),
       })),
     };
-  }, [compared, authorsById]);
+  }, [compared, labelOf]);
 
   const toggle = (id: string) => {
-    setSelected((current) => toggleSelection(current, defaultSelection, id, MAX_COMPARED));
+    setSelected(toggleSelection(effective, defaultSelection, id, MAX_COMPARED));
   };
 
   if (isEmpty) {
@@ -115,7 +167,7 @@ export function Compare() {
       render: (row) => (
         <span className="flex items-center gap-2.5">
           <Avatar name={authorName(authorsById, row.authorId)} color={authorColors.colorOf(row.authorId)} />
-          <span className="truncate text-[var(--text-primary)]">{authorName(authorsById, row.authorId)}</span>
+          <span className="truncate text-[var(--text-primary)]">{labelOf(row.authorId)}</span>
         </span>
       ),
     },
@@ -186,13 +238,16 @@ export function Compare() {
         <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
           {candidates.map((entry) => {
             const active = effective.includes(entry.authorId);
-            const full = isSelectionFull(selected, defaultSelection, entry.authorId, MAX_COMPARED);
+            const full = isSelectionFull(effective, defaultSelection, entry.authorId, MAX_COMPARED);
             return (
               <button
                 key={entry.authorId}
                 type="button"
                 aria-pressed={active}
                 disabled={full}
+                // La puce tronque : sur deux homonymes, c'est justement l'indice
+                // qui départage qui saute. Le survol le rend.
+                title={labelOf(entry.authorId)}
                 onClick={() => toggle(entry.authorId)}
                 className={cx(
                   'flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1 text-sm transition',
@@ -207,7 +262,7 @@ export function Compare() {
                   className="h-2.5 w-2.5 rounded-[3px]"
                   style={{ background: active ? authorColors.colorOf(entry.authorId) : 'var(--text-muted)' }}
                 />
-                <span className="max-w-[160px] truncate">{authorName(authorsById, entry.authorId)}</span>
+                <span className="max-w-[160px] truncate">{labelOf(entry.authorId)}</span>
                 <span className="tnum text-xs text-[var(--text-muted)]">{formatCompact(entry.commits)}</span>
               </button>
             );
@@ -233,7 +288,7 @@ export function Compare() {
                 days={timeline.days}
                 series={timeline.series}
                 colors={authorColors}
-                nameOf={(id) => authorName(authorsById, id)}
+                nameOf={labelOf}
                 palette={palette}
                 granularity={timeline.granularity}
                 height={340}

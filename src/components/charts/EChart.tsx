@@ -2,14 +2,18 @@
  * Enveloppe ECharts minimale.
  *
  * Deux comportements volontaires :
- *  - `notMerge: false` pour que la mise à jour d'une option conserve l'état
- *    d'interaction (survol, zoom) au lieu de tout reconstruire ;
+ *  - la mise à jour d'une option **fusionne** tant que le jeu de séries ne
+ *    change pas, pour conserver l'état d'interaction (survol, zoom) au lieu de
+ *    tout reconstruire. Dès que ce jeu change — ou seulement son ordre — on
+ *    reconstruit : une fusion ne retire jamais une série disparue de l'option
+ *    (voir `seriesSignature`) ;
  *  - au refetch, on garde le rendu précédent en opacité réduite plutôt que de
  *    réafficher un squelette : un squelette qui clignote à chaque filtre fait
  *    sauter la mise en page et donne une impression de lenteur.
  */
 
 import { useEffect, useRef } from 'react';
+import { seriesSignature } from './seriesSignature';
 import * as echarts from 'echarts/core';
 import { BarChart, LineChart, HeatmapChart, TreemapChart, RadarChart, CustomChart } from 'echarts/charts';
 import {
@@ -62,6 +66,7 @@ export function EChart({
 }: EChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
+  const signatureRef = useRef<string | null>(null);
   const handlersRef = useRef(onEvent);
   handlersRef.current = onEvent;
 
@@ -71,6 +76,9 @@ export function EChart({
 
     const chart = echarts.init(element, undefined, { renderer: 'canvas' });
     chartRef.current = chart;
+    // Instance neuve : la première option est une construction, jamais une
+    // fusion avec ce qu'affichait l'instance précédente.
+    signatureRef.current = null;
 
     // Le ResizeObserver peut se déclencher après le démontage (il est notifié de
     // façon asynchrone) : sans ce garde, ECharts avertit qu'on manipule une
@@ -90,10 +98,15 @@ export function EChart({
   useEffect(() => {
     const chart = chartRef.current;
     if (chart === null || chart.isDisposed()) return;
+    // Une fusion apparie les séries par identité et garde celles que la nouvelle
+    // option ne mentionne plus : à jeu de séries modifié, il faut reconstruire.
+    const signature = seriesSignature(option);
+    const structural = signature !== signatureRef.current;
+    signatureRef.current = signature;
     // `lazyUpdate` différerait le rendu à la frame suivante : si le composant
     // est démonté entre-temps (navigation, StrictMode), ECharts travaille sur
     // une instance libérée. Le gain de perf ne vaut pas ce risque ici.
-    chart.setOption(option, { notMerge: false, lazyUpdate: false });
+    chart.setOption(option, { notMerge: structural, lazyUpdate: false });
   }, [option]);
 
   useEffect(() => {
