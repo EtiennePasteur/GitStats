@@ -11,6 +11,7 @@ npm run lint         # tsc -b --noEmit (strict, noUncheckedIndexedAccess)
 npm run build
 npm run demo:data    # jeu de démo → demo-gitstats.json (2 instances, 234 dépôts, 1 miroir)
 npm run screenshots  # capture les écrans + détecte les erreurs console
+npm run shots:readme # régénère docs/screenshots/ (les captures publiées)
 ```
 
 ---

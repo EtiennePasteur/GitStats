@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "lint": "tsc -b --noEmit",
     "demo:data": "node scripts/make-demo-data.mjs demo-gitstats.json",
-    "screenshots": "node scripts/screenshot.mjs"
+    "screenshots": "node scripts/screenshot.mjs",
+    "shots:readme": "node scripts/readme-shots.mjs"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.9",
