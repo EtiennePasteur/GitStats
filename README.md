@@ -10,6 +10,7 @@
   <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black">
   <img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white">
   <img alt="Backend : aucun" src="https://img.shields.io/badge/backend-aucun-22c55e">
+  <a href="LICENSE"><img alt="Licence MIT" src="https://img.shields.io/badge/licence-MIT-blue"></a>
 </p>
 
 ![Vue globale : KPI, calendrier d'activité, commits par contributeur, volume de code et répartition par dépôt](docs/screenshots/global.png)
@@ -357,3 +358,11 @@ changement modifie. Si vous touchez au calcul des chiffres, la section
 [Décisions qui changent les chiffres](#décisions-qui-changent-les-chiffres) liste
 les pièges qui ont chacun coûté un vrai bug — ils sont contre-intuitifs et ne
 doivent pas être « corrigés ».
+
+## Licence
+
+[MIT](LICENSE) — © 2026 Etienne Pasteur.
+
+Vous pouvez l'utiliser, le modifier et le redistribuer, y compris en interne et
+en contexte commercial, à condition de conserver la notice de copyright. Le
+logiciel est fourni sans garantie.
