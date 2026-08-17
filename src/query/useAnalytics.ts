@@ -1,0 +1,147 @@
+/**
+ * Pont entre le Dataset brut et les vues : applique les filtres une seule fois
+ * par rendu et mémoïse les agrégats.
+ *
+ * Point clé sur les couleurs : l'attribution des teintes est calculée sur le
+ * classement NON filtré (hors dates/bots/merges). Une personne conserve donc sa
+ * couleur quand on change la plage de dates — c'est la règle « la couleur suit
+ * l'entité, pas son rang ».
+ */
+
+import { useMemo } from 'react';
+import { useAppStore } from '../store/useAppStore';
+import { useFilterStore, toFilters } from '../store/useFilterStore';
+import {
+  filterBuckets,
+  computeTotals,
+  byAuthor,
+  byProject,
+  dataExtent,
+  namespaceTree,
+  type AuthorStats,
+  type ProjectStats,
+  type Totals,
+} from './selectors';
+import { assignColors, readPalette, type ColorAssignment, type Palette } from '../viz/palette';
+import { flattenAliases, mergeAuthorRecords } from '../sync/identity';
+import type { DailyBucket, StoredAuthor, StoredProject, ProjectKey } from '../model/types';
+
+export interface Analytics {
+  buckets: DailyBucket[];
+  totals: Totals;
+  authors: AuthorStats[];
+  projects: ProjectStats[];
+  authorsById: ReadonlyMap<string, StoredAuthor>;
+  projectsById: ReadonlyMap<ProjectKey, StoredProject>;
+  extent: { from: string | null; to: string | null };
+  namespaces: Array<{ path: string; count: number }>;
+  palette: Palette;
+  /** Attribution stable des couleurs d'auteur (indépendante des filtres). */
+  authorColors: ColorAssignment;
+  isEmpty: boolean;
+}
+
+export function useAnalytics(): Analytics {
+  const dataset = useAppStore((state) => state.dataset);
+  const dataVersion = useAppStore((state) => state.dataVersion);
+  const filterState = useFilterStore();
+  const filters = toFilters(filterState);
+
+  const palette = useMemo(() => readPalette(), []);
+
+  /**
+   * Fusions manuelles, résolues à la lecture : une fusion validée dans les
+   * réglages se voit tout de suite, sans attendre la prochaine collecte, et
+   * reste annulable puisque les seaux stockés ne sont pas réécrits.
+   */
+  const aliases = useMemo(
+    () => flattenAliases(dataset.meta?.manualAliases ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataset, dataVersion],
+  );
+
+  const mergedAuthors = useMemo(
+    () => (aliases.size === 0 ? dataset.authors : mergeAuthorRecords(dataset.authors.values(), aliases)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataset, dataVersion, aliases],
+  );
+
+  // Étendue et arborescence de groupes : dépendent des données, pas des filtres.
+  const extent = useMemo(
+    () => dataExtent(dataset.daily.values()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataset, dataVersion],
+  );
+  const namespaces = useMemo(
+    () => namespaceTree(dataset.projects.values()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataset, dataVersion],
+  );
+
+  /**
+   * Classement de référence pour les couleurs : volumes bruts, sans aucun filtre
+   * de date. Seule l'exclusion des bots est prise en compte, car un bot ne doit
+   * jamais consommer un des 8 emplacements catégoriels.
+   */
+  const authorColors = useMemo(() => {
+    const totalsByAuthor = new Map<string, number>();
+    for (const bucket of dataset.daily.values()) {
+      const authorId = aliases.get(bucket.authorId) ?? bucket.authorId;
+      const author = mergedAuthors.get(authorId);
+      if (author?.isBot === true) continue;
+      totalsByAuthor.set(authorId, (totalsByAuthor.get(authorId) ?? 0) + bucket.commits);
+    }
+    const ranked = [...totalsByAuthor.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([id]) => id);
+    return assignColors(ranked, palette);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataset, dataVersion, palette, aliases, mergedAuthors]);
+
+  const buckets = useMemo(
+    () => filterBuckets(dataset.daily.values(), filters, mergedAuthors, dataset.projects, aliases),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      dataset,
+      dataVersion,
+      filters.from,
+      filters.to,
+      filters.projectKeys,
+      filters.instanceIds,
+      filters.authorIds,
+      filters.namespaces,
+      filters.excludeBots,
+      filters.excludeMerges,
+      filters.search,
+      aliases,
+      mergedAuthors,
+    ],
+  );
+
+  const totals = useMemo(() => computeTotals(buckets), [buckets]);
+  const authors = useMemo(() => byAuthor(buckets), [buckets]);
+  const projects = useMemo(() => byProject(buckets), [buckets]);
+
+  return {
+    buckets,
+    totals,
+    authors,
+    projects,
+    authorsById: mergedAuthors,
+    projectsById: dataset.projects,
+    extent,
+    namespaces,
+    palette,
+    authorColors,
+    isEmpty: dataset.daily.size === 0,
+  };
+}
+
+/** Nom lisible d'un auteur, avec repli sur l'identifiant. */
+export function authorName(authors: ReadonlyMap<string, StoredAuthor>, id: string): string {
+  return authors.get(id)?.displayName ?? id;
+}
+
+export function projectName(projects: ReadonlyMap<ProjectKey, StoredProject>, key: ProjectKey): string {
+  return projects.get(key)?.pathWithNamespace ?? key;
+}

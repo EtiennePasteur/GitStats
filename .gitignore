@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.local
+tsconfig.tsbuildinfo
+
+# Exports de données GitStats — ils contiennent l'activité de tout le parc et
+# n'ont rien à faire dans le dépôt.
+demo-gitstats.json
+gitstats-*.json

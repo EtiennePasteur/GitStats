@@ -1,0 +1,181 @@
+@import 'tailwindcss';
+
+/**
+ * Tokens de couleur — palette de référence de la méthode dataviz, validée au
+ * script (8/8 PASS sur surface sombre #1a1a19 : bande de clarté, plancher de
+ * chroma, séparation daltonisme, plancher vision normale, contraste).
+ *
+ * Les deux modes sont des jeux de pas SÉLECTIONNÉS pour leur surface, pas une
+ * inversion automatique de l'autre.
+ *
+ * Règle non négociable appliquée partout : la couleur suit l'ENTITÉ (un auteur
+ * garde sa teinte), jamais son rang — sinon filtrer repeint les survivants et
+ * trahit le lecteur qui avait mémorisé « Étienne = bleu ».
+ */
+
+:root {
+  color-scheme: dark;
+
+  --surface-1: #1a1a19; /* surface des cartes / graphiques */
+  --surface-2: #222221; /* surface surélevée : entêtes, popovers */
+  --plane: #0d0d0d; /* plan de page */
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+
+  --grid: #2c2c2a; /* filet de grille */
+  --axis: #383835; /* ligne de base / axes */
+  --border: rgb(255 255 255 / 0.1);
+  --border-strong: rgb(255 255 255 / 0.18);
+
+  /* Catégoriel — ordre FIXE, jamais cyclé. Au-delà de 8 : « Autres ». */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  /* Séquentiel — une seule teinte, clair → foncé (magnitude continue). */
+  --seq-100: #cde2fb;
+  --seq-200: #9ec5f4;
+  --seq-300: #6da7ec;
+  --seq-400: #3987e5;
+  --seq-500: #256abf;
+  --seq-600: #184f95;
+  --seq-700: #0d366b;
+
+  /* Divergent — pôles chaud/froid opposés + gris neutre au centre. */
+  --div-pos: #3987e5; /* lignes ajoutées */
+  --div-neg: #e66767; /* lignes supprimées */
+  --div-mid: #383835;
+
+  /* Statuts — réservés, jamais réutilisés comme couleur de série. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --surface-1: #fcfcfb;
+  --surface-2: #f2f1ed;
+  --plane: #f9f9f7;
+
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgb(11 11 11 / 0.1);
+  --border-strong: rgb(11 11 11 / 0.18);
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  --seq-100: #cde2fb;
+  --seq-200: #9ec5f4;
+  --seq-300: #6da7ec;
+  --seq-400: #3987e5;
+  --seq-500: #256abf;
+  --seq-600: #184f95;
+  --seq-700: #0d366b;
+
+  --div-pos: #2a78d6;
+  --div-neg: #e34948;
+  --div-mid: #f0efec;
+}
+
+@theme inline {
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-plane: var(--plane);
+  --color-ink: var(--text-primary);
+  --color-ink-secondary: var(--text-secondary);
+  --color-ink-muted: var(--text-muted);
+  --color-grid: var(--grid);
+  --color-axis: var(--axis);
+  --color-hairline: var(--border);
+  --color-good: var(--status-good);
+  --color-warning: var(--status-warning);
+  --color-serious: var(--status-serious);
+  --color-critical: var(--status-critical);
+  --font-sans: var(--font-ui);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Chiffres alignés uniquement là où ils s'empilent verticalement (colonnes,
+   graduations). Jamais sur un grand nombre isolé : les chasses égales font
+   « flotter » un 121 en corps 40. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--axis);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
