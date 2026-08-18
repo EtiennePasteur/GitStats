@@ -7,3 +7,5 @@ tsconfig.tsbuildinfo
 # n'ont rien à faire dans le dépôt.
 demo-gitstats.json
 gitstats-*.json
+
+.idea/
