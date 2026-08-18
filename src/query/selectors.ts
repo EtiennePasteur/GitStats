@@ -493,6 +493,28 @@ export function namespaceTree(projects: Iterable<StoredProject>): Array<{ path: 
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
+/**
+ * Fenêtre à tracer sur les axes temporels : bornes du filtre, rognées sur
+ * l'étendue des données.
+ *
+ * Les axes doivent suivre la période choisie — sinon changer de préréglage ne
+ * bouge rien à l'écran, les données filtrées se tassant dans un axe resté
+ * all-time. Le rognage évite le symétrique : « 12 derniers mois » sur un parc
+ * qui n'a que 3 mois d'historique dessinerait 9 mois de vide, que le lecteur
+ * lirait comme une absence d'activité et non comme une absence de données.
+ *
+ * Renvoie `null, null` si l'intersection est vide (période hors données).
+ */
+export function visibleRange(
+  filters: { from: string | null; to: string | null },
+  extent: { from: string | null; to: string | null },
+): { from: string | null; to: string | null } {
+  if (extent.from === null || extent.to === null) return { from: null, to: null };
+  const from = filters.from !== null && filters.from > extent.from ? filters.from : extent.from;
+  const to = filters.to !== null && filters.to < extent.to ? filters.to : extent.to;
+  return from > to ? { from: null, to: null } : { from, to };
+}
+
 /** Bornes de dates réellement couvertes par les données. */
 export function dataExtent(buckets: Iterable<DailyBucket>): { from: string | null; to: string | null } {
   let from: string | null = null;

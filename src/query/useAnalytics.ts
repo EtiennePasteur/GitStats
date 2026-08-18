@@ -18,6 +18,7 @@ import {
   byAuthor,
   byProject,
   dataExtent,
+  visibleRange,
   namespaceTree,
   type AuthorStats,
   type ProjectStats,
@@ -34,7 +35,10 @@ export interface Analytics {
   projects: ProjectStats[];
   authorsById: ReadonlyMap<string, StoredAuthor>;
   projectsById: ReadonlyMap<ProjectKey, StoredProject>;
+  /** Étendue TOTALE des données, indépendante des filtres. */
   extent: { from: string | null; to: string | null };
+  /** Fenêtre affichée : `extent` restreint à la période sélectionnée. */
+  range: { from: string | null; to: string | null };
   namespaces: Array<{ path: string; count: number }>;
   palette: Palette;
   /** Attribution stable des couleurs d'auteur (indépendante des filtres). */
@@ -74,6 +78,12 @@ export function useAnalytics(): Analytics {
     () => dataExtent(dataset.daily.values()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [dataset, dataVersion],
+  );
+  // `extent` sert d'ancrage aux préréglages de la barre de filtres ; `range`
+  // sert aux axes, qui doivent eux suivre la période sélectionnée.
+  const range = useMemo(
+    () => visibleRange({ from: filters.from, to: filters.to }, extent),
+    [filters.from, filters.to, extent],
   );
   const namespaces = useMemo(
     () => namespaceTree(dataset.projects.values()),
@@ -156,6 +166,7 @@ export function useAnalytics(): Analytics {
     authorsById: mergedAuthors,
     projectsById: dataset.projects,
     extent,
+    range,
     namespaces,
     palette,
     authorColors,

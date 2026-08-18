@@ -7,6 +7,7 @@ import {
   byDay,
   byDayAndAuthor,
   fillDays,
+  visibleRange,
   namespaceTree,
   EMPTY_FILTERS,
   type Filters,
@@ -259,6 +260,29 @@ describe('utilitaires', () => {
     ]);
     expect(fillDays('2026-08-17', '2026-08-17')).toEqual(['2026-08-17']);
     expect(fillDays('2026-08-18', '2026-08-17')).toEqual([]);
+  });
+
+  it('visibleRange suit la période choisie sans déborder des données', () => {
+    const extent = { from: '2026-01-01', to: '2026-08-17' };
+
+    // Le cœur du bug corrigé : un axe figé sur l'étendue totale ne bougeait pas
+    // quand on resserrait la période.
+    expect(visibleRange({ from: '2026-07-19', to: '2026-08-17' }, extent)).toEqual({
+      from: '2026-07-19',
+      to: '2026-08-17',
+    });
+    // Bornes plus larges que les données : rognées, pas de vide inventé.
+    expect(visibleRange({ from: '2025-01-01', to: '2026-12-31' }, extent)).toEqual(extent);
+    expect(visibleRange({ from: null, to: null }, extent)).toEqual(extent);
+    // Période hors données, et absence totale de données.
+    expect(visibleRange({ from: '2027-01-01', to: '2027-12-31' }, extent)).toEqual({
+      from: null,
+      to: null,
+    });
+    expect(visibleRange({ from: '2026-01-01', to: '2026-08-17' }, { from: null, to: null })).toEqual({
+      from: null,
+      to: null,
+    });
   });
 
   it('namespaceTree agrège les groupes parents', () => {

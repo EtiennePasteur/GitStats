@@ -37,14 +37,17 @@ export function Global() {
   const overviewCount = useAppStore((state) => state.dataset.overviews.size);
   const [showTable, setShowTable] = useState(false);
 
-  const { buckets, totals, authors, projects, palette, authorColors, projectsById, extent, labelOf } =
+  const { buckets, totals, authors, projects, palette, authorColors, projectsById, range, labelOf } =
     analytics;
 
+  // Les axes suivent `range` (la période choisie), jamais l'étendue totale des
+  // données : sinon changer de préréglage ne repositionne rien à l'écran.
+  //
   // Le calendrier reste TOUJOURS journalier : c'est tout son intérêt. Seules les
   // courbes sont regroupées quand la période s'étale.
   const dayPoints = useMemo(
-    () => byDay(buckets, analytics.extent.from ?? undefined, analytics.extent.to ?? undefined),
-    [buckets, analytics.extent],
+    () => byDay(buckets, range.from ?? undefined, range.to ?? undefined),
+    [buckets, range],
   );
   const granularity = useMemo(() => pickGranularity(dayPoints.length), [dayPoints.length]);
   const trendPoints = useMemo(
@@ -52,9 +55,16 @@ export function Global() {
     [dayPoints, granularity],
   );
 
+  // Mêmes bornes que le calendrier et la courbe de volume : trois cartes de la
+  // même page qui n'afficheraient pas la même fenêtre se compareraient à tort.
   const timeline = useMemo(
-    () => byDayAndAuthor(buckets, authorColors.named.slice(0, 8), { granularity }),
-    [buckets, authorColors, granularity],
+    () =>
+      byDayAndAuthor(buckets, authorColors.named.slice(0, 8), {
+        from: range.from ?? undefined,
+        to: range.to ?? undefined,
+        granularity,
+      }),
+    [buckets, authorColors, range, granularity],
   );
 
   const topAuthors = useMemo(
@@ -200,8 +210,8 @@ export function Global() {
       <Card
         title="Activité quotidienne"
         subtitle={
-          extent.from !== null && extent.to !== null
-            ? `du ${formatDay(extent.from)} au ${formatDay(extent.to)}`
+          range.from !== null && range.to !== null
+            ? `du ${formatDay(range.from)} au ${formatDay(range.to)}`
             : undefined
         }
       >

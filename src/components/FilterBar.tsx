@@ -7,7 +7,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { useFilterStore, type DatePreset } from '../store/useFilterStore';
+import { useFilterStore, rangeForPreset, type DatePreset } from '../store/useFilterStore';
 import { useAnalytics } from '../query/useAnalytics';
 import { useAppStore } from '../store/useAppStore';
 import { Button, Toggle, cx, formatDay } from './ui/primitives';
@@ -15,8 +15,11 @@ import { Button, Toggle, cx, formatDay } from './ui/primitives';
 const PRESETS: Array<{ id: DatePreset; label: string }> = [
   { id: '7d', label: '7 j' },
   { id: '30d', label: '30 j' },
-  { id: '90d', label: '90 j' },
-  { id: '12m', label: '12 mois' },
+  { id: '3m', label: '3 m' },
+  { id: '6m', label: '6 m' },
+  { id: '12m', label: '12 m' },
+  { id: '24m', label: '24 m' },
+  { id: '36m', label: '36 m' },
   { id: 'all', label: 'Tout' },
 ];
 
@@ -78,21 +81,40 @@ export function FilterBar() {
     >
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 px-5 py-2.5">
         <div className="flex items-center gap-0.5 rounded-lg border border-[var(--border)] p-0.5">
-          {PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => filters.setPreset(preset.id, extent)}
-              className={cx(
-                'h-7 cursor-pointer rounded-md px-2.5 text-xs font-medium transition',
-                filters.preset === preset.id
-                  ? 'bg-[var(--series-1)] text-white'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
-              )}
-            >
-              {preset.label}
-            </button>
-          ))}
+          {PRESETS.map((preset) => {
+            const active = filters.preset === preset.id;
+            // Un préréglage qui remonte plus loin que l'historique donne le même
+            // graphe que « Tout ». Il reste cliquable — la fenêtre est rognée à
+            // l'affichage — mais s'affiche en retrait pour que le lecteur
+            // comprenne pourquoi rien ne bouge. Jamais sur le bouton actif : le
+            // texte en retrait sur le fond accentué perdrait son contraste.
+            const start = rangeForPreset(preset.id, extent).from;
+            const beyondDataHint =
+              !active && extent.from !== null && start !== null && start < extent.from
+                ? `Données disponibles depuis le ${formatDay(extent.from)}`
+                : undefined;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => filters.setPreset(preset.id, extent)}
+                title={beyondDataHint}
+                className={cx(
+                  'h-7 cursor-pointer rounded-md px-1.5 text-xs font-medium transition',
+                  active
+                    ? 'bg-[var(--series-1)] text-white'
+                    : cx(
+                        'hover:bg-[var(--surface-2)]',
+                        beyondDataHint !== undefined
+                          ? 'text-[var(--text-muted)]'
+                          : 'text-[var(--text-secondary)]',
+                      ),
+                )}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="relative">

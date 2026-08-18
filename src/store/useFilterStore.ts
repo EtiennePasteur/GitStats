@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { EMPTY_FILTERS, type Filters } from '../query/selectors';
 import type { ProjectKey } from '../model/types';
 
-export type DatePreset = '7d' | '30d' | '90d' | '12m' | 'all' | 'custom';
+export type DatePreset = '7d' | '30d' | '3m' | '6m' | '12m' | '24m' | '36m' | 'all' | 'custom';
 
 interface FilterState extends Filters {
   preset: DatePreset;
@@ -32,7 +32,14 @@ function shiftDays(days: number, to: string): string {
 
 function shiftMonths(months: number, to: string): string {
   const date = new Date(`${to}T00:00:00Z`);
+  const day = date.getUTCDate();
+  // Reculer d'abord au 1ᵉʳ : `setUTCMonth` appliqué à un 29–31 déborde sur le
+  // mois suivant quand le mois visé est plus court (31 août − 6 mois donnerait
+  // le 3 mars). On recale ensuite le quantième, rogné sur la fin du mois.
+  date.setUTCDate(1);
   date.setUTCMonth(date.getUTCMonth() - months);
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, lastDay));
   return date.toISOString().slice(0, 10);
 }
 
@@ -50,10 +57,16 @@ export function rangeForPreset(
       return { from: shiftDays(7, to), to };
     case '30d':
       return { from: shiftDays(30, to), to };
-    case '90d':
-      return { from: shiftDays(90, to), to };
+    case '3m':
+      return { from: shiftMonths(3, to), to };
+    case '6m':
+      return { from: shiftMonths(6, to), to };
     case '12m':
       return { from: shiftMonths(12, to), to };
+    case '24m':
+      return { from: shiftMonths(24, to), to };
+    case '36m':
+      return { from: shiftMonths(36, to), to };
     case 'all':
       return { from: extent.from, to };
     case 'custom':
