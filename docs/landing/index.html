@@ -21,6 +21,14 @@
             font-family:'JetBrains Mono',monospace; font-size:12px; }
   .s1 { background:radial-gradient(120px 80px at 30% 0%, rgb(57 135 229/.5), transparent 70%), #1a1a19; color:#8ab6ee; }
   .s2 { background:#f7f6f2; color:#14140f; font-family:Georgia,serif; font-size:22px; font-style:italic; }
+  .s4 { background:radial-gradient(120px 90px at 30% 10%, rgb(57 135 229/.35), transparent 70%), #1a1a19;
+        color:#fff; font-family:Georgia,serif; font-size:20px; font-style:italic; }
+  .badge { font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+           color:#4ecfa0; border:1px solid rgb(78 207 160/.4); background:rgb(25 158 112/.14);
+           border-radius:5px; padding:2px 7px; vertical-align:2px; margin-left:8px; }
+  a.reco { border-color:rgb(78 207 160/.35); }
+  code { font-family:'JetBrains Mono',monospace; font-size:12px; background:rgb(255 255 255/.07);
+         border:1px solid var(--line); border-radius:4px; padding:1px 4px; }
   .s3 { background:#0b0c0b; color:#35d07f;
         background-image:linear-gradient(to right,rgb(255 255 255/.05) 1px,transparent 1px),linear-gradient(to bottom,rgb(255 255 255/.05) 1px,transparent 1px);
         background-size:14px 14px; }
@@ -32,10 +40,22 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>GitStats — trois propositions de landing page</h1>
-  <p class="sub">Trois directions autonomes en HTML/CSS, mêmes contenus, mêmes deux appels à l'action
-    (« Voir la démo » et « Analyser mes repos »). Aucune dépendance, aucun JS applicatif.</p>
+  <h1>GitStats — quatre propositions de landing page</h1>
+  <p class="sub">Quatre directions autonomes en HTML/CSS, mêmes contenus, mêmes deux appels à l'action
+    (« Voir la démo » et « Analyser mes repos »). Aucune dépendance, aucun JS applicatif.
+    Aucun chiffre du jeu de démonstration n'y est présenté comme une caractéristique du produit :
+    le nombre de dépôts, d'instances et d'appels dépend de chaque parc.</p>
   <div class="row">
+    <a class="card reco" href="proposition-4-editorial-sombre.html">
+      <div class="swatch s4">Aa · #1a1a19</div>
+      <div>
+        <h2>4 — Éditorial sombre <span class="badge">retenue</span></h2>
+        <p>Le texte et les chapitres de la proposition 2, posés sur la surface sombre du produit :
+           sérif d'affichage en clair sur <code>#0d0d0d</code>, halo bleu discret, captures qui ne
+           coupent plus avec la page.</p>
+        <p class="meta">registre : argumentaire · surface : sombre · wording de la 2, UI de la 1</p>
+      </div>
+    </a>
     <a class="card" href="proposition-1-dashboard.html">
       <div class="swatch s1">#1a1a19 · #3987e5</div>
       <div>

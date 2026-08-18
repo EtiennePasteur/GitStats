@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GitStats — 234 dépôts, 2 GitLab, 0 backend</title>
+<title>GitStats — Tous vos dépôts, toutes vos instances, 0 backend</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -234,8 +234,8 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--f
 <main>
   <!-- ═══ HERO ═══ -->
   <div class="wrap hero">
-    <p class="prompt"><b>$</b> gitstats --instances 2 --depots 234 --backend <span class="c-r">none</span></p>
-    <h1>234 dépôts. 2 GitLab.<br><span class="g">0 backend.</span></h1>
+    <p class="prompt"><b>$</b> gitstats --instances <span class="c-b">all</span> --depots <span class="c-b">all</span> --backend <span class="c-r">none</span></p>
+    <h1>Tous vos dépôts.<br>Toutes vos instances.<br><span class="g">0 backend.</span></h1>
     <p class="lede">
       Un tableau de bord d'activité Git qui tourne <b>entièrement dans votre navigateur</b> :
       il appelle lui-même l'API de chaque instance avec votre token, agrège commits et lignes
@@ -254,7 +254,7 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--f
     </div>
 
     <div class="term">
-      <div class="term-bar"><i></i><i></i><i></i> &nbsp;sync — instance A + instance B</div>
+      <div class="term-bar"><i></i><i></i><i></i> &nbsp;sync — exemple de sortie sur le parc de démonstration</div>
       <div class="term-body">
 <div><span class="c-d">[vague 0]</span> découverte des projets ................ <span class="c-g">234 dépôts</span>  <span class="c-d">3 appels</span></div>
 <div><span class="c-d">[vague 1]</span> aperçu contributeurs ................ <span class="c-g">OK</span>  <span class="c-d">~40 s, classement lisible</span></div>
@@ -356,7 +356,7 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--f
     <div class="wrap">
       <p class="tag">// la collecte</p>
       <h2>Trois vagues, un coût mesuré</h2>
-      <p class="sub">La vague 1 rend un classement utilisable en ~40 secondes pendant que la vague 2 travaille. Ses chiffres sont all-time : un aperçu, jamais la source des graphiques temporels.</p>
+      <p class="sub">La vague 1 rend un classement utilisable bien avant la fin, pendant que la vague 2 travaille. Ses chiffres sont all-time : un aperçu, jamais la source des graphiques temporels.</p>
 
       <table>
         <thead><tr><th>Vague</th><th>Endpoint</th><th>Coût</th></tr></thead>
@@ -368,11 +368,17 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--f
       </table>
 
       <div class="kpis" style="margin-top:26px;margin-bottom:0">
-        <div class="kpi"><b class="c-b">~2 000</b><span>appels au 1<sup>er</sup> sync (234 dépôts, 12 mois)</span></div>
-        <div class="kpi"><b class="c-g">&lt; 100</b><span>appels aux syncs suivants</span></div>
-        <div class="kpi"><b class="c-a">3–7 min</b><span>première collecte complète</span></div>
-        <div class="kpi"><b class="c-g">&lt; 30 s</b><span>collecte incrémentale</span></div>
+        <div class="kpi"><b class="c-g">0</b><span>appel pour un dépôt qui n'a pas bougé</span></div>
+        <div class="kpi"><b class="c-b">1 / dépôt</b><span>pour le classement de contributeurs</span></div>
+        <div class="kpi"><b class="c-a">3</b><span>vagues, dont deux exploitables avant la fin</span></div>
+        <div class="kpi"><b class="c-v">n</b><span>instances collectées en parallèle, un limiteur chacune</span></div>
       </div>
+
+      <p style="font-family:var(--sans);font-size:14px;color:var(--fg-3);margin:14px 0 0">
+        Les volumes affichés dans le terminal ci-dessus viennent du parc de démonstration. Chez vous, le
+        coût suit le nombre de dépôts <em>actifs</em> et la profondeur d'historique demandée — pas le
+        total de vos dépôts.
+      </p>
 
       <div class="callout">
         <b>Le limiteur se calibre tout seul.</b> Les en-têtes <code>RateLimit-*</code> et <code>Retry-After</code>
@@ -397,7 +403,7 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--f
           <tr><td class="n">En-têtes de pagination</td><td><span class="ok">✓</span> <code>Link</code>, <code>X-Total</code>, <code>X-Next-Page</code>, <code>ETag</code> exposés</td></tr>
           <tr><td class="n"><code>RateLimit-*</code> / <code>Retry-After</code></td><td><span class="no">✗</span> non exposés en cross-origin → auto-régulation obligatoire</td></tr>
           <tr><td class="n"><code>X-Total-Pages</code> sur les commits</td><td><span class="no">✗</span> non renvoyé → pagination via <code>Link rel="next"</code></td></tr>
-          <tr><td class="n">30 000 seaux en IndexedDB</td><td><span class="warn">⚠</span> 24 s avec 3 index ; 2 jamais interrogés → supprimés + écriture par lots ⇒ <span class="ok">9 s</span></td></tr>
+          <tr><td class="n">Écriture massive en IndexedDB <em style="color:var(--fg-3);font-style:normal">(banc d'essai)</em></td><td><span class="warn">⚠</span> 24 s avec 3 index ; 2 jamais interrogés → supprimés + écriture par lots ⇒ <span class="ok">9 s</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -416,7 +422,7 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--f
         </div>
         <div class="box">
           <p class="n">IndexedDB</p><h3>Aucun commit brut archivé</h3>
-          <p>Agrégation en seaux (dépôt, auteur, jour) dès l'ingestion. Seuls les seaux et les 100 derniers commits par dépôt sont conservés.</p>
+          <p>Agrégation en seaux (dépôt, auteur, jour) dès l'ingestion. Seuls les seaux et les derniers commits de chaque dépôt sont conservés.</p>
         </div>
         <div class="box">
           <p class="n">File System Access</p><h3>Un <code>.json</code> chez vous</h3>
@@ -468,8 +474,8 @@ footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--f
         <p class="tag">// 2 minutes, 0 installation</p>
         <h2>Regardez d'abord. Branchez ensuite.</h2>
         <p class="sub">
-          La démo tourne sur un jeu de données réaliste — 2 instances, 234 dépôts, 12 mois, un dépôt
-          mirroré, des identités en double — sans solliciter le moindre GitLab. Pour vos vrais chiffres :
+          La démo tourne sur un jeu de données généré — plusieurs instances, des centaines de dépôts,
+          un dépôt mirroré, des identités en double — sans solliciter le moindre GitLab. Pour vos vrais chiffres :
           une URL d'instance, un token <code>read_api</code>, et c'est parti.
         </p>
         <div class="cta-row">

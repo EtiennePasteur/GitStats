@@ -163,6 +163,8 @@ h1 .accent {
   padding: 4px 10px; border-radius: 6px; max-width: 380px; margin: 0 auto;
 }
 .frame img { width: 100%; }
+.shot-note { margin: 14px 0 0; font-size: 13.5px; color: var(--text-muted); text-align: center; }
+.shot-note strong { color: var(--text-secondary); font-weight: 600; }
 .fade-bottom {
   height: 130px; margin-top: -130px; position: relative; z-index: 2;
   background: linear-gradient(to bottom, transparent, var(--plane) 88%);
@@ -361,7 +363,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 90px;
       <h1>Toute l'activité de votre parc GitLab,<br><span class="accent">sans rien déployer.</span></h1>
       <p class="lede">
         GitStats est une page statique qui interroge elle-même l'API de vos instances GitLab,
-        agrège 234 dépôts répartis sur plusieurs serveurs, et vous rend commits, lignes de code,
+        agrège tous vos dépôts — répartis sur autant de serveurs que nécessaire — et vous rend commits, lignes de code,
         contributeurs et rythmes de travail. Votre token ne quitte jamais l'onglet.
       </p>
       <div class="cta-row">
@@ -388,14 +390,15 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 90px;
           </div>
           <img src="../screenshots/global.png" alt="Vue globale de GitStats : KPI, calendrier d'activité, commits par contributeur et répartition par dépôt">
         </div>
+        <p class="shot-note">Capture prise sur le <strong>jeu de démonstration</strong> livré avec le projet ; chez vous, les chiffres sont les vôtres.</p>
       </div>
       <div class="fade-bottom"></div>
 
       <div class="stats">
-        <div class="stat"><b class="n1">234</b><span>dépôts agrégés dans une seule vue</span></div>
-        <div class="stat"><b class="n2">&lt; 100</b><span>appels API par sync incrémental</span></div>
-        <div class="stat"><b class="n3">2</b><span>instances GitLab fusionnées</span></div>
-        <div class="stat"><b class="n4">0</b><span>serveur, base ou compte de service</span></div>
+        <div class="stat"><b class="n1">Tous</b><span>vos dépôts, dans une seule vue</span></div>
+        <div class="stat"><b class="n2">n</b><span>instances GitLab fusionnées</span></div>
+        <div class="stat"><b class="n3">0</b><span>serveur, base ou compte de service</span></div>
+        <div class="stat"><b class="n4">MIT</b><span>code lisible, modifiable, hébergeable chez vous</span></div>
       </div>
     </div>
   </section>
@@ -406,7 +409,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 90px;
       <p class="eyebrow">Le problème</p>
       <h2>GitLab sait montrer <em>un</em> dépôt.</h2>
       <p class="sec-lede">
-        Il ne sait pas répondre à « qu'est-ce qui s'est passé sur nos 234 dépôts cette année ? » —
+        Il ne sait pas répondre à « qu'est-ce qui s'est passé sur tous nos dépôts cette année ? » —
         encore moins quand ils vivent sur deux serveurs différents.
       </p>
       <div class="split">
@@ -529,7 +532,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 90px;
       <p class="eyebrow">Comment ça marche</p>
       <h2>La collecte, en trois vagues</h2>
       <p class="sec-lede">
-        Un classement utilisable en ~40 secondes, pendant que l'historique daté continue de se remplir en arrière-plan.
+        Un classement utilisable avant même la fin de la collecte, pendant que l'historique daté continue de se remplir en arrière-plan.
       </p>
     </div>
     <div class="wrap">
@@ -557,8 +560,8 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 90px;
         <div class="card">
           <h3>Le coût, en vrai</h3>
           <p>
-            <strong style="color:#fff">1<sup>er</sup> sync</strong> — 234 dépôts, 12 mois : 1 200 à 2 700 appels, soit 3 à 7 minutes.<br>
-            <strong style="color:#fff">Syncs suivants</strong> — ~30 dépôts actifs : 50 à 100 appels, moins de 30 secondes.<br>
+            <strong style="color:#fff">1<sup>er</sup> sync</strong> — quelques minutes : le coût suit votre nombre de dépôts et la profondeur d'historique demandée.<br>
+            <strong style="color:#fff">Syncs suivants</strong> — un ordre de grandeur en moins : seuls les dépôts qui ont bougé coûtent des appels.<br>
             Élargir la fenêtre de 12 à 24 mois ne re-télécharge que la période manquante.
           </p>
         </div>
@@ -651,7 +654,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 90px;
         <p class="eyebrow">Deux minutes, zéro installation</p>
         <h2>Regardez d'abord. Branchez ensuite.</h2>
         <p class="lede">
-          La démo tourne sur un jeu de données réaliste — 2 instances, 234 dépôts, 12 mois,
+          La démo tourne sur un jeu de données généré — plusieurs instances, des centaines de dépôts,
           un dépôt mirroré, des identités en double — sans solliciter le moindre GitLab.
           Quand vous voulez vos vrais chiffres : un token <code>read_api</code>, une URL, et c'est parti.
         </p>
