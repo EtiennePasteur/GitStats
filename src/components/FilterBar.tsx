@@ -246,6 +246,11 @@ export function FilterBar() {
         <div className="flex items-center gap-4">
           <Toggle checked={filters.excludeBots} onChange={filters.toggleBots} label="Masquer les bots" />
           <Toggle checked={filters.excludeMerges} onChange={filters.toggleMerges} label="Masquer les merges" />
+          <Toggle
+            checked={filters.excludeMuted}
+            onChange={filters.toggleMuted}
+            label="Masquer les dépôts ignorés"
+          />
         </div>
 
         {(activeCount > 0 || filters.preset !== 'all') && (

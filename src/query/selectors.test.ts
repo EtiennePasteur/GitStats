@@ -155,6 +155,43 @@ describe('filterBuckets', () => {
     expect(source[0]!.commits).toBe(10);
     expect(source[0]!.merges).toBe(4);
   });
+
+  /** Même carte de projets, avec un drapeau posé sur le projet 2. */
+  const flagged = (flag: 'muted' | 'excluded'): Map<string, StoredProject> => {
+    const copy = new Map(PROJECTS);
+    copy.set(P(2), { ...PROJECTS.get(P(2))!, [flag]: true });
+    return copy;
+  };
+
+  it('écarte par défaut un dépôt ignoré', () => {
+    const kept = filterBuckets(all, f({ excludeBots: false }), AUTHORS, flagged('muted'));
+    expect(kept.every((b) => b.projectKey !== P(2))).toBe(true);
+    expect(kept).toHaveLength(3);
+  });
+
+  it('excludeMuted à false réintègre le dépôt ignoré', () => {
+    const kept = filterBuckets(
+      all,
+      f({ excludeBots: false, excludeMuted: false }),
+      AUTHORS,
+      flagged('muted'),
+    );
+    expect(kept).toHaveLength(4);
+    expect(kept.some((b) => b.projectKey === P(2))).toBe(true);
+  });
+
+  it('un doublon de miroir reste écarté même quand on réaffiche les dépôts ignorés', () => {
+    // Sans cette garantie, l'interrupteur de la barre de filtres ferait recompter
+    // le même code une fois par instance : le bug que la détection de miroirs
+    // existe précisément pour éviter.
+    const kept = filterBuckets(
+      all,
+      f({ excludeBots: false, excludeMuted: false }),
+      AUTHORS,
+      flagged('excluded'),
+    );
+    expect(kept.every((b) => b.projectKey !== P(2))).toBe(true);
+  });
 });
 
 describe('agrégations', () => {

@@ -2,16 +2,19 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAnalytics } from '../query/useAnalytics';
 import { useAppStore } from '../store/useAppStore';
+import { useFilterStore } from '../store/useFilterStore';
 import { byDay, byDayAndAuthor, pickGranularity, type ProjectStats } from '../query/selectors';
 import { DataTable, type Column } from '../components/DataTable';
 import { CommitTimeline, ActivityCalendar, RankingBars, Sparkline } from '../components/charts/charts';
 import {
+  Button,
   Card,
   StatTile,
   EmptyState,
   StatusBadge,
   InstanceBadge,
   SeriesDot,
+  cx,
   formatNumber,
   formatCompact,
   formatDay,
@@ -44,6 +47,9 @@ export function Projects() {
   const navigate = useNavigate();
   const { projects, projectsById, palette, buckets, isEmpty } = useAnalytics();
   const instances = useAppStore((state) => state.instances);
+  const setProjectMuted = useAppStore((state) => state.setProjectMuted);
+  const dataVersion = useAppStore((state) => state.dataVersion);
+  const excludeMuted = useFilterStore((state) => state.excludeMuted);
   // Recherche locale au tableau : elle n'affiche ou masque que des lignes. Le
   // champ du bandeau, lui, restreint le périmètre de toute l'application — d'où
   // les deux libellés distincts, « Rechercher » ici et « Filtrer » là-haut.
@@ -76,6 +82,23 @@ export function Projects() {
     return result;
   }, [buckets]);
 
+  /**
+   * Dépôts retirés des statistiques. Comptés sur le Dataset complet et non sur les
+   * lignes : masqués, ils n'ont justement plus de ligne, et leur absence doit être
+   * annoncée plutôt que silencieuse.
+   */
+  const mutedCount = useMemo(() => {
+    let count = 0;
+    for (const project of projectsById.values()) {
+      if (project.muted === true && project.excluded !== true) count += 1;
+    }
+    return count;
+    // `projectsById` est le Dataset partagé, muté en place : sa référence ne
+    // change jamais. Sans `dataVersion`, le compteur resterait figé jusqu'au
+    // prochain rechargement de l'onglet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectsById, dataVersion]);
+
   const needle = query.trim().toLowerCase();
   const filtered = useMemo(() => {
     if (needle === '') return projects;
@@ -107,7 +130,17 @@ export function Projects() {
         return (
           <span className="flex min-w-0 flex-col">
             <span className="flex items-center gap-1.5">
-              <span className="truncate text-[var(--text-primary)]">{project?.name ?? row.projectKey}</span>
+              <span
+                className={cx(
+                  'truncate',
+                  // Même idiome que la carte des doublons : barré + encre atténuée.
+                  project?.muted === true
+                    ? 'text-[var(--text-muted)] line-through'
+                    : 'text-[var(--text-primary)]',
+                )}
+              >
+                {project?.name ?? row.projectKey}
+              </span>
               <InstanceBadge label={instanceLabel(project?.instanceId)} />
             </span>
             <span className="truncate text-xs text-[var(--text-muted)]">{project?.namespaceFullPath}</span>
@@ -176,18 +209,62 @@ export function Projects() {
         return <StatusBadge tone={STATE_TONE[state]}>{STATE_LABEL[state]}</StatusBadge>;
       },
     },
+    {
+      key: 'muted',
+      header: 'Statistiques',
+      align: 'right',
+      width: '130px',
+      render: (row) => {
+        const muted = projectsById.get(row.projectKey)?.muted === true;
+        return (
+          // Rendu en lien plutôt qu'en bouton plein : répété sur des centaines de
+          // lignes, un bloc coloré prend le pas sur les chiffres qu'on vient lire.
+          <button
+            type="button"
+            title={
+              muted
+                ? 'Recompter ce dépôt dans les statistiques'
+                : 'Retirer ce dépôt des statistiques, sans arrêter sa synchronisation'
+            }
+            // La ligne entière navigue vers la fiche, au clic comme à la touche
+            // Entrée : sans ces coupures, agir sur le bouton changerait de page
+            // dans la foulée.
+            onClick={(event) => {
+              event.stopPropagation();
+              void setProjectMuted(row.projectKey, !muted);
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
+            className={cx(
+              'cursor-pointer rounded text-xs underline-offset-2 transition hover:underline',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--series-1)]',
+              muted
+                ? 'text-[var(--series-1)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            {muted ? 'Réintégrer' : 'Ignorer'}
+          </button>
+        );
+      },
+    },
   ];
+
+  const subtitle = [
+    needle === '' ? null : `${formatNumber(filtered.length)} sur ${formatNumber(projects.length)}`,
+    excludeMuted && mutedCount > 0
+      ? `${formatNumber(mutedCount)} ignoré${mutedCount > 1 ? 's' : ''}, masqué${mutedCount > 1 ? 's' : ''}`
+      : null,
+    'Cliquez sur une ligne pour le détail.',
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' · ');
 
   return (
     <Card
       // Le titre garde le total du périmètre : un chiffre de référence qui
       // changerait à chaque frappe ne serait plus une référence.
       title={`${formatNumber(projects.length)} dépôts actifs`}
-      subtitle={
-        needle === ''
-          ? 'Cliquez sur une ligne pour le détail.'
-          : `${formatNumber(filtered.length)} sur ${formatNumber(projects.length)} · Cliquez sur une ligne pour le détail.`
-      }
+      subtitle={subtitle}
       actions={
         <input
           type="search"
@@ -223,10 +300,13 @@ export function ProjectDetail() {
   const params = useParams<{ key: string }>();
   const navigate = useNavigate();
   const projectKeyParam = params.key ?? '';
-  const analytics = useAnalytics();
+  // `includeMuted` : cette vue ne parle que d'UN dépôt. Aucun total agrégé ne peut
+  // être gonflé, alors qu'une fiche vide serait incompréhensible.
+  const analytics = useAnalytics({ includeMuted: true });
   const { projectsById, authorColors, palette, buckets, labelOf } = analytics;
   const dataset = useAnalyticsDataset();
   const instances = useAppStore((state) => state.instances);
+  const setProjectMuted = useAppStore((state) => state.setProjectMuted);
 
   const project = projectsById.get(projectKeyParam);
   const projectBuckets = useMemo(
@@ -299,8 +379,29 @@ export function ProjectDetail() {
             </a>
           </p>
         </div>
-        <StatusBadge tone={STATE_TONE[project.sync.state]}>{STATE_LABEL[project.sync.state]}</StatusBadge>
+        <div className="flex shrink-0 items-center gap-2">
+          {project.muted === true && (
+            <>
+              <StatusBadge tone="neutral">Ignoré</StatusBadge>
+              <Button
+                variant="primary"
+                title="Recompter ce dépôt dans les statistiques"
+                onClick={() => void setProjectMuted(project.key, false)}
+              >
+                Réintégrer
+              </Button>
+            </>
+          )}
+          <StatusBadge tone={STATE_TONE[project.sync.state]}>{STATE_LABEL[project.sync.state]}</StatusBadge>
+        </div>
       </div>
+
+      {project.muted === true && (
+        <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+          Ce dépôt est retiré des statistiques globales. Les chiffres ci-dessous sont bien les
+          siens : la synchronisation, elle, n'a jamais été interrompue.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Commits" value={formatNumber(stats.commits)} />

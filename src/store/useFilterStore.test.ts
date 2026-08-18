@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { rangeForPreset } from './useFilterStore';
+import { rangeForPreset, toFilters, useFilterStore } from './useFilterStore';
+import { EMPTY_FILTERS } from '../query/selectors';
 
 const EXTENT = { from: '2023-01-15', to: '2026-08-17' };
 
@@ -35,5 +36,15 @@ describe('rangeForPreset', () => {
 
   it('ne propose aucune borne tant qu\'aucune donnée n\'est chargée', () => {
     expect(rangeForPreset('12m', { from: null, to: null })).toEqual({ from: null, to: null });
+  });
+});
+
+describe('toFilters', () => {
+  it('projette tous les champs de Filters, sans en oublier aucun', () => {
+    // La projection est manuelle : un champ ajouté à `Filters` mais oublié ici
+    // n'atteint jamais `filterBuckets`, et son interrupteur reste sans effet.
+    const filters = toFilters(useFilterStore.getState());
+    expect(Object.keys(filters).sort()).toEqual(Object.keys(EMPTY_FILTERS).sort());
+    expect(filters.excludeMuted).toBe(true);
   });
 });

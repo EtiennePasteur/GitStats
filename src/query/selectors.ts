@@ -23,6 +23,12 @@ export interface Filters {
   namespaces: ReadonlySet<string> | null;
   excludeBots: boolean;
   excludeMerges: boolean;
+  /**
+   * Écarte les dépôts marqués `StoredProject.muted`. Contrairement à
+   * `StoredProject.excluded` — un doublon de miroir, jamais comptable — c'est un
+   * choix d'affichage : le dépôt reste collecté et revient d'un clic.
+   */
+  excludeMuted: boolean;
   /** Filtre texte sur le nom du projet. */
   search: string;
 }
@@ -35,7 +41,11 @@ export const EMPTY_FILTERS: Filters = {
   authorIds: null,
   namespaces: null,
   excludeBots: true,
-  excludeMerges: false,
+  // Un merge n'est pas du travail écrit : le compter gonfle le nombre de commits
+  // de qui intègre les branches des autres. Ses lignes, elles, sont déjà écartées
+  // à l'ingestion — l'interrupteur ne joue que sur le compte de commits.
+  excludeMerges: true,
+  excludeMuted: true,
   search: '',
 };
 
@@ -124,7 +134,10 @@ export function filterBuckets(
 
     const project = projects.get(bucket.projectKey);
     // Un dépôt écarté (miroir d'une autre instance, par exemple) ne compte nulle part.
+    // Inconditionnel, et il doit le rester : le rendre réversible depuis la barre
+    // de filtres ferait recompter le même code une fois par instance.
     if (project?.excluded === true) continue;
+    if (filters.excludeMuted && project?.muted === true) continue;
     if (namespaces !== null || search !== '') {
       if (project === undefined) continue;
       if (namespaces !== null && !matchesNamespace(project.namespaceFullPath, namespaces)) continue;

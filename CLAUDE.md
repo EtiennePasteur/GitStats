@@ -6,7 +6,7 @@ Personal Access Token, agrège, et stocke en IndexedDB.
 
 ```bash
 npm run dev          # http://localhost:4300/GitStats/ (base GitHub Pages)
-npm test             # 185 tests, ~1,3 s
+npm test             # 225 tests, ~0,8 s
 npm run lint         # tsc -b --noEmit (strict, noUncheckedIndexedAccess)
 npm run build
 npm run demo:data    # jeu de démo → demo-gitstats.json (2 instances, 234 dépôts, 1 miroir)
@@ -78,6 +78,24 @@ par commit. Les inclure double le volume de tout dépôt qui merge.
   mémorisés pour la dédup. Raccourcir la seconde ⇒ double comptage silencieux.
 - Angle mort assumé : une branche mergée après > 7 jours de vie. Seul remède, le
   bouton « Tout resynchroniser » (`config.forceFullResync`).
+
+### Dépôts écartés — deux notions à ne pas fusionner
+Deux drapeaux cohabitent sur `StoredProject`, et les confondre réintroduit un bug
+que la détection de miroirs existe pour éviter :
+- `excluded` — **structurel**. Un dépôt mirroré entre instances ; le compter deux
+  fois gonfle commits, lignes et classements. Écarté **inconditionnellement** dans
+  `filterBuckets`, jamais réversible par un filtre.
+- `muted` — **éditorial**. Choix de l'utilisateur (le dépôt de config que toute
+  l'équipe touche). Réversible d'un clic via `Filters.excludeMuted`, piloté par
+  l'interrupteur « Masquer les dépôts ignorés » de la barre de filtres.
+
+Les deux sont préservés par le sync (`engine.ts`, `previous?.…`) : sans quoi
+chaque re-découverte du dépôt effacerait la décision.
+
+Conséquence UI : un dépôt ignoré n'a plus de seau, donc plus de ligne dans la
+route Projets. L'inventaire exhaustif est la carte « Dépôts ignorés » des
+Réglages ; la fiche d'un dépôt, elle, appelle `useAnalytics({ includeMuted: true })`
+— son périmètre étant unique, aucun total ne peut y être gonflé.
 
 ### Agrégation
 - `activeDays` compte les **jours distincts**, pas les seaux. Il y a un seau par

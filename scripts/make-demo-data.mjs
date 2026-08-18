@@ -239,6 +239,19 @@ if (source && mirror) {
   mirror.pathWithNamespace = `${mirror.namespaceFullPath}/${mirror.name}`;
 }
 
+// Un dépôt de configuration très actif, retiré des statistiques : le cas type de
+// l'option « Ignorer » — tout le monde le touche, personne n'y produit de valeur
+// mesurable, et sa présence écrase les classements.
+const shared = projects
+  .filter((p) => p !== source && p !== mirror && p.sync.commitCount > 0)
+  .sort((a, b) => b.sync.commitCount - a.sync.commitCount)[0];
+if (shared) {
+  shared.name = 'config-partagee';
+  shared.pathWithNamespace = `${shared.namespaceFullPath}/${shared.name}`;
+  shared.nameWithNamespace = `${shared.namespaceFullPath} / ${shared.name}`;
+  shared.muted = true;
+}
+
 const file = {
   format: 'gitstats',
   version: 2,

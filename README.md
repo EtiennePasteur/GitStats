@@ -152,6 +152,22 @@ deux fois et gonfle silencieusement commits, lignes et classements.
 Deux dépôts d'une **même** instance sont ignorés : c'est un fork légitime, pas un
 doublon.
 
+### Dépôts ignorés
+
+Certains dépôts faussent la lecture sans rien dire du travail réel : le dépôt de
+configuration que toute l'équipe touche tous les jours écrase les classements.
+On peut les **retirer des statistiques sans les retirer de la collecte** — d'un
+clic depuis la liste des dépôts, ou depuis la carte « Dépôts ignorés » des
+réglages, qui les inventorie tous.
+
+La synchronisation continue normalement, et l'interrupteur « Masquer les dépôts
+ignorés » de la barre de filtres les réaffiche quand on veut les revoir. La fiche
+d'un dépôt ignoré, elle, montre toujours ses chiffres : elle ne parle que de lui.
+
+À ne pas confondre avec l'exclusion d'un doublon ci-dessus : un miroir n'est pas
+comptable et le reste en toutes circonstances, alors qu'ici le dépôt l'est
+parfaitement — on choisit seulement de ne pas le compter.
+
 ---
 
 ## Comment ça marche

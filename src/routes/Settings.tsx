@@ -5,6 +5,7 @@ import { InstanceManager } from '../components/InstanceManager';
 import { detectMirrors, suggestExclusions } from '../sync/mirrors';
 import { suggestMerges, type MergeSuggestion, type MergeKind } from '../sync/identity';
 import { getStorageUsage, type StorageUsage } from '../store/db';
+import type { StoredProject } from '../model/types';
 import {
   isFileSystemAccessSupported,
   linkFile,
@@ -199,6 +200,8 @@ export function Settings() {
       </Card>
 
       <MirrorDetector onDone={notify} />
+
+      <MutedProjects onDone={notify} />
 
       <IdentityMerger onDone={notify} setManualAliases={setManualAliases} />
 
@@ -725,6 +728,126 @@ function MirrorDetector({ onDone }: { onDone: (message: string) => void }) {
           </ul>
         </>
       )}
+    </Card>
+  );
+}
+
+/**
+ * Dépôts retirés des statistiques sur décision de l'utilisateur.
+ *
+ * À ne pas confondre avec les doublons de la carte précédente : un miroir n'est
+ * PAS comptable, alors qu'ici le dépôt l'est parfaitement — on choisit seulement
+ * de ne pas le compter. Un dépôt de configuration que toute l'équipe touche tous
+ * les jours écrase sinon tous les classements sans rien dire de l'activité réelle.
+ *
+ * C'est le seul inventaire exhaustif : la route Projets ne liste que les dépôts
+ * actifs sur la période, et masque les ignorés tant que l'interrupteur de la
+ * barre de filtres est fermé.
+ */
+function MutedProjects({ onDone }: { onDone: (message: string) => void }) {
+  const dataset = useAppStore((state) => state.dataset);
+  const dataVersion = useAppStore((state) => state.dataVersion);
+  const setProjectMuted = useAppStore((state) => state.setProjectMuted);
+  const [query, setQuery] = useState('');
+
+  const byPath = (a: StoredProject, b: StoredProject): number =>
+    a.pathWithNamespace.localeCompare(b.pathWithNamespace, 'fr');
+
+  const muted = useMemo(
+    () => [...dataset.projects.values()].filter((project) => project.muted === true).sort(byPath),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataset, dataVersion],
+  );
+
+  const needle = query.trim().toLowerCase();
+  // Bornée : taper « a » sur un parc de 234 dépôts ne doit pas dérouler tout le parc.
+  const candidates = useMemo(() => {
+    if (needle === '') return [];
+    return [...dataset.projects.values()]
+      .filter(
+        (project) =>
+          project.muted !== true &&
+          (project.nameWithNamespace.toLowerCase().includes(needle) ||
+            project.pathWithNamespace.toLowerCase().includes(needle)),
+      )
+      .sort(byPath)
+      .slice(0, 20);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataset, dataVersion, needle]);
+
+  return (
+    <Card
+      title="Dépôts ignorés"
+      subtitle="Retirés des statistiques, mais toujours synchronisés. L'interrupteur « Masquer les dépôts ignorés » de la barre de filtres les réaffiche à la demande."
+    >
+      {muted.length === 0 ? (
+        <p className="text-sm text-[var(--text-muted)]">
+          Aucun dépôt ignoré : tout ce qui est collecté est compté.
+        </p>
+      ) : (
+        <ul className="space-y-1">
+          {muted.map((project) => (
+            <li key={project.key} className="flex items-center gap-2 text-sm">
+              <span className="min-w-0 flex-1 truncate text-[var(--text-muted)] line-through">
+                {project.pathWithNamespace}
+              </span>
+              {project.excluded === true && <StatusBadge tone="warning">doublon</StatusBadge>}
+              <Button
+                onClick={() => {
+                  void setProjectMuted(project.key, false).then(() => onDone('Dépôt réintégré.'));
+                }}
+              >
+                Réintégrer
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-4 border-t border-[var(--border)] pt-4">
+        <p className="text-sm font-medium">Ignorer un dépôt</p>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          Pour ceux que tout le monde touche sans que cela dise rien de l'activité : configuration,
+          gabarits, documentation partagée.
+        </p>
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Nom ou chemin du dépôt…"
+          className="mt-2 h-8 w-full rounded-lg border border-[var(--border)] bg-transparent px-3 text-sm placeholder:text-[var(--text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--series-1)]"
+        />
+        {needle !== '' && candidates.length === 0 && (
+          <p className="mt-2 text-xs text-[var(--text-muted)]">Aucun dépôt ne correspond.</p>
+        )}
+        {candidates.length > 0 && (
+          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+            {candidates.map((project) => (
+              <li key={project.key} className="flex items-center gap-2 text-sm">
+                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">
+                  {project.pathWithNamespace}
+                </span>
+                {project.excluded === true ? (
+                  // Déjà écarté comme doublon : l'ignorer en plus ne changerait rien,
+                  // et le bouton laisserait croire qu'il compte encore.
+                  <StatusBadge tone="warning">déjà écarté</StatusBadge>
+                ) : (
+                  <Button
+                    variant="subtle"
+                    onClick={() => {
+                      void setProjectMuted(project.key, true).then(() =>
+                        onDone('Dépôt retiré des statistiques.'),
+                      );
+                    }}
+                  >
+                    Ignorer
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Card>
   );
 }

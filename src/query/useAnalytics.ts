@@ -20,6 +20,7 @@ import {
   dataExtent,
   visibleRange,
   namespaceTree,
+  type Filters,
   type AuthorStats,
   type ProjectStats,
   type Totals,
@@ -48,11 +49,19 @@ export interface Analytics {
   isEmpty: boolean;
 }
 
-export function useAnalytics(): Analytics {
+/**
+ * `includeMuted` force la prise en compte des dépôts retirés des statistiques.
+ * Réservé aux vues qui ne parlent QUE d'un dépôt : sur une fiche, ses chiffres
+ * doivent rester lisibles, et le périmètre étant unique aucun total ne peut être
+ * gonflé. Toute vue agrégée doit s'en tenir à l'interrupteur de la barre.
+ */
+export function useAnalytics(options?: { includeMuted?: boolean }): Analytics {
   const dataset = useAppStore((state) => state.dataset);
   const dataVersion = useAppStore((state) => state.dataVersion);
   const filterState = useFilterStore();
-  const filters = toFilters(filterState);
+  const base = toFilters(filterState);
+  const filters: Filters =
+    options?.includeMuted === true ? { ...base, excludeMuted: false } : base;
 
   const palette = useMemo(() => readPalette(), []);
 
@@ -148,6 +157,7 @@ export function useAnalytics(): Analytics {
       filters.namespaces,
       filters.excludeBots,
       filters.excludeMerges,
+      filters.excludeMuted,
       filters.search,
       aliases,
       mergedAuthors,

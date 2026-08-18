@@ -132,6 +132,14 @@ export interface StoredProject {
    * Sert notamment à ne compter qu'une fois un dépôt mirroré entre instances.
    */
   excluded?: boolean;
+  /**
+   * Retire le dépôt des statistiques sur décision de l'utilisateur, sans arrêter
+   * sa collecte. Réversible à la lecture par `Filters.excludeMuted`.
+   *
+   * Distinct de `excluded`, qui est structurel : un miroir écarté doit le rester
+   * en toutes circonstances, sinon son code compte deux fois.
+   */
+  muted?: boolean;
   sync: ProjectSyncRecord;
 }
 

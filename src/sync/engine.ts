@@ -307,6 +307,9 @@ export class SyncEngine {
       archived: remote.archived ?? false,
       lastActivityAt: remote.last_activity_at,
       excluded: previous?.excluded,
+      // Décisions de l'utilisateur : elles doivent survivre à chaque re-découverte
+      // du dépôt, sinon un sync les efface en silence.
+      muted: previous?.muted,
       sync: previous?.sync ?? {
         state: 'pending',
         coveredFrom: null,

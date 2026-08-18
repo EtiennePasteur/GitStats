@@ -21,6 +21,7 @@ interface FilterState extends Filters {
   setSearch: (search: string) => void;
   toggleBots: () => void;
   toggleMerges: () => void;
+  toggleMuted: () => void;
   reset: (extent: { from: string | null; to: string | null }) => void;
 }
 
@@ -94,6 +95,7 @@ export const useFilterStore = create<FilterState>((set) => ({
   setSearch: (search) => set({ search }),
   toggleBots: () => set((state) => ({ excludeBots: !state.excludeBots })),
   toggleMerges: () => set((state) => ({ excludeMerges: !state.excludeMerges })),
+  toggleMuted: () => set((state) => ({ excludeMuted: !state.excludeMuted })),
   reset: (extent) =>
     set({
       ...EMPTY_FILTERS,
@@ -113,6 +115,7 @@ export function toFilters(state: FilterState): Filters {
     namespaces: state.namespaces,
     excludeBots: state.excludeBots,
     excludeMerges: state.excludeMerges,
+    excludeMuted: state.excludeMuted,
     search: state.search,
   };
 }

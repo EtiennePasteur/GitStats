@@ -60,6 +60,7 @@ interface AppState {
 
   updateConfig: (patch: Partial<SyncConfig>) => Promise<void>;
   setProjectExcluded: (projectKey: string, excluded: boolean) => Promise<void>;
+  setProjectMuted: (projectKey: string, muted: boolean) => Promise<void>;
   startSync: (overrides?: Partial<SyncConfig>) => Promise<void>;
   pauseSync: () => void;
   resumeSync: () => void;
@@ -256,6 +257,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const project = get().dataset.projects.get(projectKey);
     if (project === undefined) return;
     project.excluded = excluded || undefined;
+    await db.writeProject(project);
+    get().touchData();
+  },
+
+  async setProjectMuted(projectKey, muted) {
+    const project = get().dataset.projects.get(projectKey);
+    if (project === undefined) return;
+    // `undefined` plutôt que `false` : un dépôt jamais ignoré ne porte pas le champ.
+    project.muted = muted || undefined;
     await db.writeProject(project);
     get().touchData();
   },
