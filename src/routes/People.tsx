@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAnalytics, authorName } from '../query/useAnalytics';
 import type { ProjectKey } from '../model/types';
 import { byDay, byDayAndAuthor, pickGranularity, type AuthorStats } from '../query/selectors';
-import { rhythmFromBuckets, type Rhythm } from '../query/rhythm';
+import { rhythmFromBuckets } from '../query/rhythm';
 import { DataTable, type Column } from '../components/DataTable';
 import {
   ActivityCalendar,
@@ -193,20 +193,6 @@ export function People() {
   );
 }
 
-/**
- * Dit ce que la carte montre vraiment. Les seaux collectés avant l'introduction
- * de la répartition horaire ne portent pas d'heure : le taire laisserait lire
- * une semaine de données sous le titre d'une année.
- */
-function rhythmSubtitle(rhythm: Rhythm): string {
-  if (rhythm.total === 0) return 'sur la période sélectionnée';
-  if (rhythm.known === 0) return 'jours calculés dans le fuseau de l\'auteur du commit';
-  if (rhythm.known < rhythm.total) {
-    return `heure connue sur ${formatNumber(rhythm.known)} des ${formatNumber(rhythm.total)} commits de la période`;
-  }
-  return 'heures et jours calculés dans le fuseau de l\'auteur du commit';
-}
-
 export function PersonDetail() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -327,31 +313,14 @@ export function PersonDetail() {
         </Card>
       </div>
 
-      <Card title="Rythme de travail" subtitle={rhythmSubtitle(rhythm)}>
-        {rhythm.total === 0 ? (
+      <Card
+        title="Rythme de travail"
+        subtitle="heures et jours calculés dans le fuseau de l'auteur du commit"
+      >
+        {stats.commits === 0 ? (
           <EmptyState title="Aucun commit sur cette période." />
         ) : (
-          <>
-            <RhythmChart
-              hours={rhythm.hours}
-              weekdays={rhythm.weekdays}
-              palette={palette}
-              showHours={rhythm.known > 0}
-              stale={rhythm.known > 0 && rhythm.known < rhythm.total}
-            />
-            {rhythm.known === 0 && (
-              // Le jour de la semaine se déduit de la date du seau, donc il reste
-              // exact ; l'heure, elle, n'a jamais été archivée pour ces commits.
-              <p className="mt-2 text-xs text-[var(--text-muted)]">
-                L'heure des commits n'est collectée que depuis la mise à jour de
-                l'application. Lancez « Tout resynchroniser » dans les{' '}
-                <Link to="/reglages" className="text-[var(--series-1)] hover:underline">
-                  Réglages
-                </Link>{' '}
-                pour la récupérer sur l'historique.
-              </p>
-            )}
-          </>
+          <RhythmChart hours={rhythm.hours} weekdays={rhythm.weekdays} palette={palette} />
         )}
       </Card>
 

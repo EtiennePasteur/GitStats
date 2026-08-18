@@ -108,10 +108,9 @@ qui commite sur deux serveurs avec la même adresse compte pour une seule person
 
 La fiche individuelle ajoute la répartition par dépôt et le rythme de travail
 (par heure et par jour de semaine), calculé dans le fuseau de l'auteur du commit.
-Comme tout le reste, il suit la barre de filtres : changer la période le repeint.
-Les commits collectés avant la version qui archive l'heure n'en portent pas — la
-carte le dit alors plutôt que de les compter, et un « Tout resynchroniser » les
-récupère.
+Comme tout le reste, il suit la barre de filtres : changer la période le repeint,
+et masquer les merges retire aussi leurs heures — le total du graphe reste égal
+au nombre de commits affiché juste au-dessus.
 
 ![Fiche d'une personne : KPI, calendrier, répartition par dépôt, rythme horaire et hebdomadaire](docs/screenshots/personne-detail.png)
 
@@ -335,7 +334,7 @@ n'est joignable que depuis une copie lancée en local.
 
 ```bash
 npm run dev          # serveur de développement, http://localhost:4300/GitStats/
-npm test             # 185 tests (Vitest)
+npm test             # 247 tests (Vitest)
 npm run lint         # typecheck strict (tsc --noEmit)
 npm run build        # build de production
 
@@ -360,8 +359,7 @@ src/
   gitlab/     client, limiteur AIMD, pagination, endpoints      ← zéro React
   sync/       coordinateur multi-instances, moteur 3 vagues,
               planificateur, agrégation, identités, miroirs     ← zéro React
-  store/      IndexedDB (+ migration v1→v2), dataset mémoire,
-              fichier .json, stores Zustand
+  store/      IndexedDB, dataset mémoire, fichier .json, stores Zustand
   query/      filtres, agrégations, granularité, sélection
   viz/        attribution des couleurs de série
   components/ primitives, graphiques ECharts, tableau, filtres

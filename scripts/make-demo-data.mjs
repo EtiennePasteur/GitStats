@@ -174,9 +174,12 @@ for (let id = 1; id <= PROJECT_COUNT; id++) {
       const merges = random() < 0.15 ? 1 : 0;
 
       // La répartition horaire vit dans le seau. Invariants attendus par le
-      // lecteur : somme(hourly) === commits, et hourlyMerges ⊆ hourly.
+      // lecteur : somme(hourly) === commits, et hourlyMerges ⊆ hourly. Le
+      // sous-ensemble se prend sur la première heure, borné par ce qu'elle
+      // contient : un merge posé sur une heure qui n'a qu'un commit ferait
+      // passer la soustraction du filtre « Masquer les merges » sous zéro.
       const hourly = drawHours(authorId, commits);
-      const hourlyMerges = merges > 0 ? [hourly[0], merges] : undefined;
+      const hourlyMerges = merges > 0 ? [hourly[0], Math.min(hourly[1], merges)] : [];
 
       daily.push([
         key,
@@ -283,7 +286,7 @@ if (shared) {
 
 const file = {
   format: 'gitstats',
-  version: 2,
+  version: 1,
   instances: INSTANCES.map(({ id, host, label }) => ({
     id,
     host,
@@ -312,20 +315,23 @@ const file = {
   authorIndex,
   projectIndex: [...new Set(daily.map((row) => row[0]))],
   daily: [],
-  // Vestige du format : plus rien ne le lit, mais un fichier neuf doit rester
-  // ouvrable par une version antérieure de l'application.
-  rhythms: [],
   overviews: [],
   recentCommits,
 };
 
 // Packing final : les clés de projet sont indexées comme les auteurs.
 const projectIndexOf = new Map(file.projectIndex.map((key, i) => [key, i]));
-file.daily = daily.map((row) => {
-  const packed = [projectIndexOf.get(row[0]), row[1], row[2], row[3], row[4], row[5], row[6], row[7]];
-  if (row[8] !== undefined) packed.push(row[8]);
-  return packed;
-});
+file.daily = daily.map((row) => [
+  projectIndexOf.get(row[0]),
+  row[1],
+  row[2],
+  row[3],
+  row[4],
+  row[5],
+  row[6],
+  row[7],
+  row[8],
+]);
 
 const json = JSON.stringify(file);
 writeFileSync(OUT, json);

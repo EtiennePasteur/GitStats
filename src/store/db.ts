@@ -16,21 +16,11 @@ import type {
   DailyBucket,
   ProjectOverview,
   RecentCommit,
-  AuthorRhythm,
   StoredMeta,
 } from '../model/types';
 import { mergeHours } from '../model/hours';
-import {
-  migrateV1ToV2,
-  type V1Snapshot,
-  type V1Project,
-  type V1DailyBucket,
-  type V1ProjectOverview,
-  type V1RecentCommit,
-  type V1Meta,
-} from './migrate';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 1;
 export const DB_NAME = 'gitstats';
 /** Nombre de commits conservés par projet pour le fil d'activité. */
 export const RECENT_COMMITS_PER_PROJECT = 100;
@@ -58,7 +48,6 @@ interface GitStatsSchema extends DBSchema {
     value: RecentCommit;
     indexes: { 'by-project': ProjectKey };
   };
-  rhythms: { key: string; value: AuthorRhythm };
   /** Handle du fichier .json lié (File System Access API). */
   handles: { key: string; value: unknown };
 }
@@ -67,67 +56,19 @@ let dbPromise: Promise<IDBPDatabase<GitStatsSchema>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<GitStatsSchema>> {
   dbPromise ??= openDB<GitStatsSchema>(DB_NAME, SCHEMA_VERSION, {
-    async upgrade(db, oldVersion, _newVersion, tx) {
-      // v1 → v2 : les projets passent d'un identifiant numérique GitLab à une clé
-      // préfixée par l'instance. Les `keyPath` changent, donc les magasins
-      // concernés doivent être recréés — on relit d'abord leur contenu pour le
-      // réécrire transformé, plutôt que de faire perdre à l'utilisateur une
-      // collecte de plusieurs minutes.
-      let legacy: V1Snapshot | null = null;
-      if (oldVersion >= 1 && db.objectStoreNames.contains('projects')) {
-        legacy = {
-          projects: (await tx.objectStore('projects' as never).getAll()) as V1Project[],
-          daily: db.objectStoreNames.contains('daily')
-            ? ((await tx.objectStore('daily' as never).getAll()) as V1DailyBucket[])
-            : [],
-          overviews: db.objectStoreNames.contains('overview')
-            ? ((await tx.objectStore('overview' as never).getAll()) as V1ProjectOverview[])
-            : [],
-          recentCommits: db.objectStoreNames.contains('recentCommits')
-            ? ((await tx.objectStore('recentCommits' as never).getAll()) as V1RecentCommit[])
-            : [],
-          meta: db.objectStoreNames.contains('meta')
-            ? ((await tx.objectStore('meta' as never).get('meta')) as V1Meta | undefined)
-            : undefined,
-        };
-        for (const name of ['projects', 'daily', 'overview', 'recentCommits'] as const) {
-          if (db.objectStoreNames.contains(name)) db.deleteObjectStore(name);
-        }
-      }
-
-      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
-      if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'key' });
-      if (!db.objectStoreNames.contains('authors')) db.createObjectStore('authors', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('daily')) {
-        const store = db.createObjectStore('daily', { keyPath: 'key' });
-        store.createIndex('by-project', 'projectKey');
-      }
-      if (!db.objectStoreNames.contains('overview')) {
-        db.createObjectStore('overview', { keyPath: 'projectKey' });
-      }
-      if (!db.objectStoreNames.contains('recentCommits')) {
-        const store = db.createObjectStore('recentCommits', { keyPath: 'key' });
-        store.createIndex('by-project', 'projectKey');
-      }
-      // Magasin vestigial : plus rien ne l'écrit ni ne le lit depuis que la
-      // répartition horaire vit dans les seaux journaliers. On le déclare
-      // toujours plutôt que de monter `SCHEMA_VERSION` — le bloc de migration
-      // ci-dessus est gardé par `oldVersion >= 1` SANS borne haute, donc une
-      // version 3 rejouerait la conversion v1→v2 sur une base v2 et détruirait
-      // des heures de collecte. À supprimer quand ce garde-fou sera resserré.
-      if (!db.objectStoreNames.contains('rhythms')) {
-        db.createObjectStore('rhythms', { keyPath: 'authorId' });
-      }
-      if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
-
-      if (legacy !== null) {
-        const migrated = migrateV1ToV2(legacy, new Date().toISOString());
-        for (const project of migrated.projects) await tx.objectStore('projects').put(project);
-        for (const bucket of migrated.daily) await tx.objectStore('daily').put(bucket);
-        for (const overview of migrated.overviews) await tx.objectStore('overview').put(overview);
-        for (const commit of migrated.recentCommits) await tx.objectStore('recentCommits').put(commit);
-        if (migrated.meta !== undefined) await tx.objectStore('meta').put(migrated.meta, 'meta');
-      }
+    // Création du schéma, et rien d'autre : aucune donnée d'une version passée
+    // n'est convertie, parce qu'il n'y en a aucune à préserver. Une base d'un
+    // schéma antérieur se supprime à la main — voir CLAUDE.md.
+    upgrade(db) {
+      db.createObjectStore('meta');
+      db.createObjectStore('projects', { keyPath: 'key' });
+      db.createObjectStore('authors', { keyPath: 'id' });
+      const daily = db.createObjectStore('daily', { keyPath: 'key' });
+      daily.createIndex('by-project', 'projectKey');
+      db.createObjectStore('overview', { keyPath: 'projectKey' });
+      const recentCommits = db.createObjectStore('recentCommits', { keyPath: 'key' });
+      recentCommits.createIndex('by-project', 'projectKey');
+      db.createObjectStore('handles');
     },
   });
   return dbPromise;
@@ -392,7 +333,7 @@ export async function getStorageUsage(): Promise<StorageUsage> {
 /** Purge les données analytiques. `keepConfig` conserve meta + handle de fichier. */
 export async function clearAllData(keepConfig = true): Promise<void> {
   const db = await getDb();
-  const stores = ['projects', 'authors', 'daily', 'overview', 'recentCommits', 'rhythms'] as const;
+  const stores = ['projects', 'authors', 'daily', 'overview', 'recentCommits'] as const;
   await Promise.all(stores.map((store) => db.clear(store)));
   if (!keepConfig) {
     await db.clear('meta');

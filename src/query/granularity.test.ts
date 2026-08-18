@@ -73,6 +73,8 @@ describe('byDayAndAuthor — agrégation temporelle', () => {
       additions: 0,
       deletions: 0,
       merges: 0,
+      hourly: [9, commits],
+      hourlyMerges: [],
     };
   }
 

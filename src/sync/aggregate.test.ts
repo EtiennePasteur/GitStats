@@ -254,10 +254,10 @@ describe('ingestCommits', () => {
     expect(bucket.hourlyMerges).toEqual([9, 1]);
   });
 
-  it("n'attache aucune heure de merge à un seau qui n'en contient pas", () => {
+  it("laisse vide la répartition des merges quand le seau n'en contient pas", () => {
     const resolver = new IdentityResolver();
     const result = ingestCommits('inst-a~1', [commit({ id: '1' })], resolver, new Set());
-    expect(result.buckets[0]!.hourlyMerges).toBeUndefined();
+    expect(result.buckets[0]!.hourlyMerges).toEqual([]);
   });
 
   it('produit les entrées du fil d\'activité', () => {

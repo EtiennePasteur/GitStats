@@ -463,7 +463,6 @@ describe('SyncEngine — robustesse', () => {
 
     // L'utilisateur déclare que Marie et Étienne sont la même personne.
     const meta = (await readMeta()) ?? {
-      schemaVersion: 2,
       instances: [INSTANCE_A],
       window: null,
       lastSyncAt: null,

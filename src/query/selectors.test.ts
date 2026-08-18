@@ -27,6 +27,8 @@ function bucket(over: Partial<DailyBucket> = {}): DailyBucket {
     additions: 30,
     deletions: 10,
     merges: 0,
+    hourly: [9, 3],
+    hourlyMerges: [],
     ...over,
   };
   return { ...base, key: `${base.projectKey}|${base.authorId}|${base.day}` };
@@ -162,10 +164,10 @@ describe('filterBuckets', () => {
     const withMerges = [bucket({ commits: 3, merges: 1, hourly: [9, 2, 14, 1], hourlyMerges: [14, 1] })];
     const kept = filterBuckets(withMerges, f({ excludeMerges: true }), AUTHORS, PROJECTS);
     expect(kept[0]!.hourly).toEqual([9, 2]);
-    expect(kept[0]!.hourlyMerges).toBeUndefined();
+    expect(kept[0]!.hourlyMerges).toEqual([]);
   });
 
-  it('conserve après filtrage l\'égalité entre heures connues et commits', () => {
+  it("conserve après filtrage l'égalité entre les heures et les commits", () => {
     // C'est cet invariant qui garantit que le total du rythme de travail ne
     // divergera jamais du KPI « Commits » affiché sur la même page.
     const source = [
@@ -175,8 +177,8 @@ describe('filterBuckets', () => {
     for (const excludeMerges of [true, false]) {
       const kept = filterBuckets(source, f({ excludeMerges }), AUTHORS, PROJECTS);
       const commits = kept.reduce((total, b) => total + b.commits, 0);
-      const known = kept.reduce((total, b) => total + sumHours(b.hourly), 0);
-      expect(known).toBe(commits);
+      const counted = kept.reduce((total, b) => total + sumHours(b.hourly), 0);
+      expect(counted).toBe(commits);
     }
   });
 
@@ -238,8 +240,8 @@ describe('filterBuckets', () => {
       bucket({ projectKey: P(2), commits: 2, hourly: [9, 2] }),
     ];
     const kept = filterBuckets(source, f({ excludeBots: false }), AUTHORS, flagged('excluded'));
-    const known = kept.reduce((total, b) => total + sumHours(b.hourly), 0);
-    expect(known).toBe(2);
+    const counted = kept.reduce((total, b) => total + sumHours(b.hourly), 0);
+    expect(counted).toBe(2);
   });
 });
 

@@ -62,6 +62,7 @@ const router = createHashRouter([
 
 export function App() {
   const status = useAppStore((state) => state.status);
+  const bootError = useAppStore((state) => state.bootError);
   const boot = useAppStore((state) => state.boot);
   const dataset = useAppStore((state) => state.dataset);
   const dataVersion = useAppStore((state) => state.dataVersion);
@@ -80,6 +81,22 @@ export function App() {
     setPreset('all', dataExtent(dataset.daily.values()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasData]);
+
+  if (status === 'unavailable') {
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <h1 className="text-lg font-semibold">Stockage local inaccessible</h1>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
+          La base locale n'a pas pu être ouverte. Supprimez-la depuis les outils de
+          développement du navigateur (Application → IndexedDB → « gitstats »), puis
+          rechargez la page.
+        </p>
+        {bootError !== null && (
+          <p className="mt-3 font-mono text-xs text-[var(--text-muted)]">{bootError}</p>
+        )}
+      </div>
+    );
+  }
 
   if (status === 'booting') {
     return (

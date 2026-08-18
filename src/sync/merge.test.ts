@@ -178,6 +178,8 @@ describe('fusion appliquée à la lecture', () => {
       additions: commits * 10,
       deletions: commits,
       merges: 0,
+      hourly: [9, commits],
+      hourlyMerges: [],
     };
   }
 

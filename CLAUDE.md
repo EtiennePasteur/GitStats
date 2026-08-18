@@ -6,7 +6,7 @@ Personal Access Token, agrège, et stocke en IndexedDB.
 
 ```bash
 npm run dev          # http://localhost:4300/GitStats/ (base GitHub Pages)
-npm test             # 225 tests, ~0,8 s
+npm test             # 247 tests, ~0,8 s
 npm run lint         # tsc -b --noEmit (strict, noUncheckedIndexedAccess)
 npm run build
 npm run demo:data    # jeu de démo → demo-gitstats.json (2 instances, 234 dépôts, 1 miroir)
@@ -105,25 +105,16 @@ Réglages ; la fiche d'un dépôt, elle, appelle `useAnalytics({ includeMuted: t
 La répartition horaire est portée par `DailyBucket.hourly` (paires `[heure,
 commits]` triées, `model/hours.ts`), et non par un magasin à part. Ce qui en
 dépend :
-- `somme(hourly) ≤ commits` est un **invariant**, y compris après filtrage :
+- `somme(hourly) === commits` est un **invariant**, y compris après filtrage :
   `filterBuckets` retranche `hourlyMerges` quand les merges sont masqués, sinon
   le total du graphe dépasserait le KPI « Commits » de la même page.
-  `hourlyMerges` est un **sous-ensemble** de `hourly`, jamais un complément.
-- `undefined` ≠ `[]`. `undefined` = heure inconnue (seau collecté avant
-  l'introduction du champ, irrécupérable sans `forceFullResync`) ; c'est le seul
-  marqueur de couverture, et il doit survivre à l'aller-retour `.json` — d'où les
-  lignes de longueur 7 conservées telles quelles par `serialize.ts`.
+  `hourlyMerges` est un **sous-ensemble** de `hourly`, jamais un complément ;
+  il vaut `[]` quand le seau ne porte aucun merge, comme `merges` y vaut zéro.
+- Les deux champs sont **obligatoires** : tout seau porte ses heures. La lecture
+  n'a donc aucun cas « heure inconnue » à gérer, et la carte « Rythme de travail »
+  n'a que deux états — des données, ou aucun commit sur la période.
 - Le **jour de la semaine ne se stocke pas** : `localWeekday(bucket.day)` le
-  déduit. Il est donc exact sur 100 % du périmètre, là où les heures ne couvrent
-  que les seaux collectés depuis. `rhythmFromBuckets` renvoie `known`/`total`
-  pour que la carte dise sa couverture au lieu de la taire.
-- L'ancienne forme `AuthorRhythm` (24 + 7 compteurs par auteur) est **dépréciée** :
-  sans date ni dépôt, elle ignorait toute la barre de filtres, comptait double les
-  dépôts mirrorés, et un re-sync complet doublait ses compteurs faute de pouvoir
-  en retirer la part d'un dépôt. Son magasin IndexedDB reste **déclaré mais vide** :
-  le bloc `upgrade` de `store/db.ts` est gardé par `oldVersion >= 1` sans borne
-  haute, donc une version 3 du schéma rejouerait la migration v1→v2 sur une base
-  v2 et détruirait les données. Resserrer ce garde-fou avant de le supprimer.
+  déduit. Les deux moitiés du graphe comptent ainsi exactement les mêmes commits.
 
 ### Identités des personnes
 - `authorId` dérive de l'e-mail normalisé ⇒ **indépendant de l'instance**.
@@ -148,8 +139,11 @@ dépend :
   auteur et par date tournent en mémoire (< 100 ms sur 150 000 seaux). Deux index
   superflus coûtaient **15 s sur un import de 30 000 seaux** (24 s → 9 s après
   suppression + écriture par lots de 2 000).
-- Schéma v2. La migration v1→v2 (`store/migrate.ts`) **convertit** les données au
-  lieu de les jeter ; `migrateV1ToV2` est pure et testée.
+- Schéma v1, **aucune migration** : le bloc `upgrade` ne fait que créer les
+  magasins. Rien ici ne sait lire un état produit par une version passée, parce
+  qu'il n'y a aucune donnée à préserver — une base d'un schéma antérieur se
+  supprime à la main. Toute évolution future du schéma devra donc soit convertir
+  explicitement, soit exiger la même purge : c'est le contrat, pas un oubli.
 - On n'archive **jamais** les commits bruts, seulement les seaux journaliers et
   les 100 derniers commits par dépôt.
 
@@ -217,8 +211,8 @@ src/
   gitlab/     client, limiteur AIMD, pagination, endpoints      ← zéro React
   sync/       coordinateur multi-instances, moteur 3 vagues,
               planificateur, agrégation, identités, miroirs     ← zéro React
-  store/      IndexedDB (+ migration v1→v2), dataset mémoire,
-              fichier .json (File System Access), stores Zustand
+  store/      IndexedDB, dataset mémoire, fichier .json
+              (File System Access), stores Zustand
   query/      filtres, agrégations, granularité, sélection
   viz/        attribution des couleurs
   components/ primitives, graphiques ECharts, tableau, filtres

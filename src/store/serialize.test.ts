@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serializeDataset, deserializeDataset } from './serialize';
+import { serializeDataset, deserializeDataset, InvalidFileError, FILE_VERSION } from './serialize';
 import { emptyDataset } from './dataset';
 import type { Dataset } from './dataset';
 import type { DailyBucket } from '../model/types';
@@ -33,6 +33,8 @@ function bucket(over: Partial<DailyBucket> = {}): DailyBucket {
     additions: 30,
     deletions: 10,
     merges: 0,
+    hourly: [9, 3],
+    hourlyMerges: [],
     ...over,
   };
 }
@@ -49,45 +51,31 @@ describe('fichier .json', () => {
     expect(back.hourly).toEqual([9, 2, 14, 1]);
   });
 
-  it('laisse sans heures un seau qui n\'en portait pas', () => {
-    // La distinction « inconnu » / « connu et vide » est le seul marqueur de
-    // couverture : l'écraser ferait mentir la carte après un export/import.
-    const source = datasetWith([bucket({ hourly: undefined })]);
-    const file = serializeDataset(source);
-    expect(file.daily[0]).toHaveLength(7);
-    expect([...roundTrip(source).daily.values()][0]!.hourly).toBeUndefined();
-  });
-
-  it('n\'écrit les heures de merge que si le seau en porte', () => {
+  it('écrit toujours les deux répartitions, merges compris', () => {
     const withMerge = serializeDataset(
       datasetWith([bucket({ merges: 1, hourly: [9, 3], hourlyMerges: [9, 1] })]),
     );
     expect(withMerge.daily[0]).toHaveLength(9);
+    expect(withMerge.daily[0]![8]).toEqual([9, 1]);
 
     const without = serializeDataset(datasetWith([bucket({ hourly: [9, 3] })]));
-    expect(without.daily[0]).toHaveLength(8);
-  });
-
-  it('lit une ligne à 7 éléments produite par une version antérieure', () => {
-    const file = serializeDataset(datasetWith([bucket({ hourly: [9, 3] })]));
-    // On rabote la ligne comme le ferait un fichier exporté avant le changement.
-    const legacy = { ...file, daily: file.daily.map((row) => row.slice(0, 7)) };
-    const back = [...deserializeDataset(JSON.parse(JSON.stringify(legacy))).daily.values()][0]!;
-    expect(back.commits).toBe(3);
-    expect(back.hourly).toBeUndefined();
+    expect(without.daily[0]).toHaveLength(9);
+    expect(without.daily[0]![8]).toEqual([]);
   });
 
   it('ignore une répartition aberrante dans un fichier trafiqué', () => {
     const file = serializeDataset(datasetWith([bucket({ hourly: [9, 3] })]));
-    const tampered = { ...file, daily: file.daily.map((row) => [...row.slice(0, 7), [42, 3]]) };
+    const tampered = { ...file, daily: file.daily.map((row) => [...row.slice(0, 7), [42, 3], []]) };
     const back = [...deserializeDataset(JSON.parse(JSON.stringify(tampered))).daily.values()][0]!;
-    expect(back.hourly).toBeUndefined();
+    // La ligne garde ses commits : seule sa barre horaire manque.
+    expect(back.hourly).toEqual([]);
     expect(back.commits).toBe(3);
   });
 
-  it('reste ouvrable par une version antérieure, qui y cherche les rythmes', () => {
+  it("refuse un fichier produit par une autre version de l'application", () => {
     const file = serializeDataset(datasetWith([bucket({ hourly: [9, 3] })]));
-    expect(file.rhythms).toEqual([]);
-    expect(file.version).toBe(2);
+    expect(file.version).toBe(FILE_VERSION);
+    const foreign = { ...file, version: FILE_VERSION + 1 };
+    expect(() => deserializeDataset(foreign)).toThrow(InvalidFileError);
   });
 });

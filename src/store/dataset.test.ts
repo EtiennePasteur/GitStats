@@ -18,6 +18,7 @@ function bucket(over: Partial<DailyBucket> = {}): DailyBucket {
     deletions: 3,
     merges: 0,
     hourly: [9, 1],
+    hourlyMerges: [],
     ...over,
   };
 }
@@ -41,16 +42,15 @@ describe('fusion des seaux en mémoire', () => {
     expect([...dataset.daily.values()][0]!.hourly).not.toBe(incoming.hourly);
   });
 
-  it('rend partiellement couvert un seau ancien qui reçoit de nouveaux commits', () => {
-    // La fenêtre de recouvrement ramène des commits sur un jour déjà collecté,
-    // avant que les heures n'existent. Jeter les heures fraîches pour rester
-    // homogène perdrait une information exacte : on les garde, et la couverture
-    // se mesure en commits.
+  it('garde les heures et les commits d\'accord quand un jour se recouvre', () => {
+    // La fenêtre de recouvrement ramène des commits sur un jour déjà collecté :
+    // les deux compteurs doivent progresser ensemble, sinon le total du rythme
+    // divergerait du KPI « Commits ».
     const dataset = emptyDataset();
-    mergeBucketsInMemory(dataset, [bucket({ commits: 4, hourly: undefined })]);
+    mergeBucketsInMemory(dataset, [bucket({ commits: 4, hourly: [9, 4] })]);
     mergeBucketsInMemory(dataset, [bucket({ commits: 1, hourly: [14, 1] })]);
     const merged = [...dataset.daily.values()][0]!;
     expect(merged.commits).toBe(5);
-    expect(sumHours(merged.hourly)).toBe(1);
+    expect(sumHours(merged.hourly)).toBe(5);
   });
 });

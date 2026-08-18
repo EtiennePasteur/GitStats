@@ -23,33 +23,21 @@ import type {
 } from '../model/types';
 import { DEFAULT_SYNC_CONFIG } from '../model/types';
 import { sanitizeHours } from '../model/hours';
-import { migrateV1ToV2, type V1Snapshot } from './migrate';
 import type { Dataset } from './dataset';
 import { emptyDataset } from './dataset';
 
 export const FILE_FORMAT = 'gitstats';
-export const FILE_VERSION = 2;
+export const FILE_VERSION = 1;
 
 /**
  * `[projectIndex, authorIndex, day, commits, additions, deletions, merges,
- *   hourly?, hourlyMerges?]`
+ *   hourly, hourlyMerges]`
  *
- * Les clés de projet sont désormais des chaînes (`instance~42`) : les indexer
- * comme les auteurs évite de répéter le nom de l'instance sur chacune des
- * dizaines de milliers de lignes.
- *
- * Les deux derniers éléments sont OMIS quand le seau ne porte pas d'heures : une
- * ligne de longueur 7 signifie « heure inconnue », et c'est ce qui fait survivre
- * le marqueur de couverture à l'aller-retour fichier. Les émettre à vide ferait
- * mentir la carte « Rythme de travail » après un export/import.
+ * Les clés de projet sont des chaînes (`instance~42`) : les indexer comme les
+ * auteurs évite de répéter le nom de l'instance sur chacune des dizaines de
+ * milliers de lignes.
  */
-type PackedDaily = [number, number, string, number, number, number, number, number[]?, number[]?];
-/**
- * `[authorIndex, heures[24], joursSemaine[7]]`
- * @deprecated Voir `AuthorRhythm`. Toujours émis à vide pour qu'un fichier neuf
- * reste lisible par une version antérieure de l'application.
- */
-type PackedRhythm = [number, number[], number[]];
+type PackedDaily = [number, number, string, number, number, number, number, number[], number[]];
 
 export interface GitStatsFile {
   format: typeof FILE_FORMAT;
@@ -66,7 +54,6 @@ export interface GitStatsFile {
   /** Idem pour les clés de projet. */
   projectIndex: ProjectKey[];
   daily: PackedDaily[];
-  rhythms: PackedRhythm[];
   overviews: ProjectOverview[];
   recentCommits: RecentCommit[];
 }
@@ -101,7 +88,7 @@ export function serializeDataset(dataset: Dataset): GitStatsFile {
 
   const daily: PackedDaily[] = [];
   for (const bucket of dataset.daily.values()) {
-    const row: PackedDaily = [
+    daily.push([
       resolveProject(bucket.projectKey),
       resolveIndex(bucket.authorId),
       bucket.day,
@@ -109,17 +96,10 @@ export function serializeDataset(dataset: Dataset): GitStatsFile {
       bucket.additions,
       bucket.deletions,
       bucket.merges,
-    ];
-    // `hourlyMerges` sans `hourly` est impossible par construction : pas de trou
-    // à combler, la ligne s'arrête simplement plus tôt.
-    if (bucket.hourly !== undefined) {
-      row.push(bucket.hourly);
-      if (bucket.hourlyMerges !== undefined) row.push(bucket.hourlyMerges);
-    }
-    daily.push(row);
+      bucket.hourly,
+      bucket.hourlyMerges,
+    ]);
   }
-
-  const rhythms: PackedRhythm[] = [];
 
   const { forceFullResync: _ignored, ...config } = dataset.meta?.config ?? DEFAULT_SYNC_CONFIG;
 
@@ -137,7 +117,6 @@ export function serializeDataset(dataset: Dataset): GitStatsFile {
     authorIndex,
     projectIndex,
     daily,
-    rhythms,
     overviews: [...dataset.overviews.values()],
     recentCommits: [...dataset.recentCommits.values()],
   };
@@ -160,27 +139,24 @@ export function deserializeDataset(raw: unknown): Dataset {
       "Ce fichier n'a pas été produit par GitStats (champ « format » absent ou incorrect).",
     );
   }
-  if (typeof file.version !== 'number' || file.version > FILE_VERSION) {
+  if (file.version !== FILE_VERSION) {
     throw new InvalidFileError(
-      `Fichier en version ${String(file.version)}, incompatible avec cette version de l'app (${FILE_VERSION}).`,
+      `Fichier en version ${String(file.version)}, alors que cette application lit la version ${FILE_VERSION}. ` +
+        'Relancez une collecte, puis réexportez.',
     );
   }
 
-  // Un fichier v1 est mono-instance : on le convertit avec la même
-  // transformation que la base locale, plutôt que de le refuser.
-  const normalized = file.version === 1 ? upgradeV1File(file) : file;
-
   const dataset = emptyDataset();
-  const authorIndex = Array.isArray(normalized.authorIndex) ? normalized.authorIndex : [];
-  const projectIndex = Array.isArray(normalized.projectIndex) ? normalized.projectIndex : [];
+  const authorIndex = Array.isArray(file.authorIndex) ? file.authorIndex : [];
+  const projectIndex = Array.isArray(file.projectIndex) ? file.projectIndex : [];
 
-  for (const project of normalized.projects ?? []) dataset.projects.set(project.key, project);
-  for (const author of normalized.authors ?? []) dataset.authors.set(author.id, author);
+  for (const project of file.projects ?? []) dataset.projects.set(project.key, project);
+  for (const author of file.authors ?? []) dataset.authors.set(author.id, author);
 
-  for (const row of normalized.daily ?? []) {
-    // Une ligne de 7 éléments vient d'une version antérieure : elle reste lisible,
-    // simplement sans heures.
-    if (!Array.isArray(row) || row.length < 7) continue;
+  for (const row of file.daily ?? []) {
+    // Garde d'entrée : le fichier est fait pour être partagé, donc éditable à la
+    // main. Une ligne amputée n'est pas réparable, on l'écarte.
+    if (!Array.isArray(row) || row.length !== 9) continue;
     const [projectIdx, authorIdx, day, commits, additions, deletions, merges, hourly, hourlyMerges] = row;
     const authorId = authorIndex[authorIdx];
     const key = projectIndex[projectIdx];
@@ -200,81 +176,20 @@ export function deserializeDataset(raw: unknown): Dataset {
     dataset.daily.set(bucket.key, bucket);
   }
 
-  for (const overview of normalized.overviews ?? []) {
+  for (const overview of file.overviews ?? []) {
     dataset.overviews.set(overview.projectKey, overview);
   }
-  for (const commit of normalized.recentCommits ?? []) dataset.recentCommits.set(commit.key, commit);
+  for (const commit of file.recentCommits ?? []) dataset.recentCommits.set(commit.key, commit);
 
   dataset.meta = {
-    schemaVersion: FILE_VERSION,
-    instances: normalized.instances ?? [],
-    window: normalized.window ?? null,
-    lastSyncAt: normalized.generatedAt ?? null,
-    config: { ...DEFAULT_SYNC_CONFIG, ...(normalized.config ?? {}) },
-    manualAliases: normalized.manualAliases ?? {},
+    instances: file.instances ?? [],
+    window: file.window ?? null,
+    lastSyncAt: file.generatedAt ?? null,
+    config: { ...DEFAULT_SYNC_CONFIG, ...(file.config ?? {}) },
+    manualAliases: file.manualAliases ?? {},
   };
 
   return dataset;
-}
-
-/**
- * Convertit un fichier v1 (mono-instance) au format v2.
- * Réutilise `migrateV1ToV2` pour que fichier et base locale suivent exactement
- * la même règle de rattachement à l'instance d'origine.
- */
-function upgradeV1File(file: Partial<GitStatsFile>): Partial<GitStatsFile> {
-  const legacy = file as unknown as {
-    gitlabHost?: string;
-    projects?: Array<{ id: number } & Record<string, unknown>>;
-    daily?: Array<[number, number, string, number, number, number, number]>;
-    overviews?: Array<{ projectId: number } & Record<string, unknown>>;
-    recentCommits?: Array<{ projectId: number; sha: string } & Record<string, unknown>>;
-    authorIndex?: string[];
-  };
-  const authorIndex = legacy.authorIndex ?? [];
-
-  const snapshot = {
-    projects: (legacy.projects ?? []) as unknown as V1Snapshot['projects'],
-    // Les lignes packées sont dépliées le temps de la conversion : elles portent
-    // un index d'auteur, pas son identifiant.
-    daily: (legacy.daily ?? []).map((row) => ({
-      key: '',
-      projectId: row[0],
-      authorId: authorIndex[row[1]] ?? '',
-      day: row[2],
-      commits: row[3],
-      additions: row[4],
-      deletions: row[5],
-      merges: row[6],
-    })) as unknown as V1Snapshot['daily'],
-    overviews: (legacy.overviews ?? []) as unknown as V1Snapshot['overviews'],
-    recentCommits: (legacy.recentCommits ?? []) as unknown as V1Snapshot['recentCommits'],
-    meta: { host: legacy.gitlabHost, config: file.config } as V1Snapshot['meta'],
-  };
-
-  const migrated = migrateV1ToV2(snapshot, new Date().toISOString());
-  const projectIndex = [...new Set(migrated.projects.map((project) => project.key))];
-  const projectIndexOf = new Map(projectIndex.map((key, i) => [key, i]));
-  const authorIndexOf = new Map(authorIndex.map((id, i) => [id, i]));
-
-  return {
-    ...file,
-    version: FILE_VERSION,
-    instances: [migrated.instance],
-    projects: migrated.projects,
-    overviews: migrated.overviews,
-    recentCommits: migrated.recentCommits,
-    projectIndex,
-    daily: migrated.daily.map((bucket) => [
-      projectIndexOf.get(bucket.projectKey) ?? 0,
-      authorIndexOf.get(bucket.authorId) ?? 0,
-      bucket.day,
-      bucket.commits,
-      bucket.additions,
-      bucket.deletions,
-      bucket.merges,
-    ]) as GitStatsFile['daily'],
-  };
 }
 
 export function toJsonBlob(file: GitStatsFile): Blob {

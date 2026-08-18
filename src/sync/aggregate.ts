@@ -129,17 +129,16 @@ export function ingestCommits(
         deletions,
         merges: isMerge ? 1 : 0,
         hourly: [hour, 1],
-        // Absent tant qu'aucun merge : c'est le cas de l'immense majorité des seaux.
-        ...(isMerge ? { hourlyMerges: [hour, 1] } : {}),
+        hourlyMerges: isMerge ? [hour, 1] : [],
       });
     } else {
       bucket.commits += 1;
       bucket.additions += additions;
       bucket.deletions += deletions;
-      bucket.hourly = addHour(bucket.hourly ?? [], hour);
+      bucket.hourly = addHour(bucket.hourly, hour);
       if (isMerge) {
         bucket.merges += 1;
-        bucket.hourlyMerges = addHour(bucket.hourlyMerges ?? [], hour);
+        bucket.hourlyMerges = addHour(bucket.hourlyMerges, hour);
       }
     }
 

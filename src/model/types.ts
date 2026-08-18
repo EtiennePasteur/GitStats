@@ -182,21 +182,16 @@ export interface DailyBucket {
    * Répartition horaire, en paires `[heure, commits]` triées par heure croissante
    * (voir `model/hours.ts`). INCLUT les commits de merge.
    *
-   * Absent = seau collecté avant l'introduction du champ. Les commits bruts
-   * n'étant pas archivés, l'heure de ces commits-là est définitivement perdue :
-   * seul un « Tout resynchroniser » la ramène. `undefined` signifie donc « heure
-   * inconnue », jamais `[]` — un seau qui porte au moins un commit ne peut pas
-   * avoir une répartition connue et vide. Cette distinction est le seul marqueur
-   * de couverture disponible, elle doit survivre à l'aller-retour `.json`.
-   *
-   * Invariant : somme des compteurs ≤ `commits`.
+   * Invariant : somme des compteurs === `commits`. Tout seau en porte une, ce qui
+   * dispense la lecture de distinguer « pas d'heure » de « heure à zéro ».
    */
-  hourly?: number[];
+  hourly: number[];
   /**
    * Sous-ensemble de `hourly` limité aux merges — jamais un complément : les
-   * additionner compterait deux fois. Absent si le seau ne porte aucun merge.
+   * additionner compterait deux fois. `[]` quand le seau ne porte aucun merge,
+   * exactement comme `merges` y vaut zéro.
    */
-  hourlyMerges?: number[];
+  hourlyMerges: number[];
 }
 
 /** Aperçu all-time issu de `repository/contributors` (1 appel/projet). */
@@ -224,25 +219,6 @@ export interface RecentCommit {
   deletions: number;
   isMerge: boolean;
   webUrl: string;
-}
-
-/** Répartition horaire (0-23) et par jour de semaine (0=dimanche), par auteur. */
-/**
- * @deprecated Magasin vestigial. La répartition horaire vit désormais dans
- * `DailyBucket.hourly`, ce qui la rend filtrable comme le reste. Cette forme
- * n'était ni datée ni rattachée à un dépôt : elle ignorait toute la barre de
- * filtres, comptait deux fois les dépôts mirrorés, et un re-sync complet doublait
- * ses compteurs faute de pouvoir en retirer la part d'un dépôt.
- *
- * Le type et son magasin IndexedDB restent déclarés pour ne pas imposer une
- * montée de schéma — voir le commentaire de `store/db.ts`.
- */
-export interface AuthorRhythm {
-  authorId: string;
-  /** 24 compteurs. */
-  hours: number[];
-  /** 7 compteurs. */
-  weekdays: number[];
 }
 
 export interface SyncWindow {
@@ -296,7 +272,6 @@ export const DEFAULT_SYNC_CONFIG: SyncConfig = {
 };
 
 export interface StoredMeta {
-  schemaVersion: number;
   /** Instances déclarées. Les tokens, eux, ne sont jamais persistés ici. */
   instances: GitLabInstance[];
   /** Fenêtre effectivement couverte, tous projets confondus. */

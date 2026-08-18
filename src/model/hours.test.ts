@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addHour, mergeHours, subtractHours, unpackHours, sumHours, sanitizeHours } from './hours';
+import { addHour, mergeHours, subtractHours, sumHours, sanitizeHours } from './hours';
 
 describe('répartition horaire', () => {
   it('insère une heure en gardant les paires triées', () => {
@@ -20,18 +20,10 @@ describe('répartition horaire', () => {
     expect(b).toEqual([10, 5, 14, 3]);
   });
 
-  it('traite une répartition inconnue comme une répartition vide', () => {
-    // Un seau ancien qui reçoit de nouveaux commits devient partiellement
-    // couvert plutôt que de perdre les heures fraîchement collectées.
-    expect(mergeHours(undefined, [9, 1])).toEqual([9, 1]);
-    expect(mergeHours([9, 1], undefined)).toEqual([9, 1]);
-    expect(mergeHours(undefined, undefined)).toBeUndefined();
-  });
-
   it('renvoie une copie et jamais la référence reçue', () => {
     const source = [9, 1];
-    expect(mergeHours(undefined, source)).not.toBe(source);
-    expect(subtractHours(source, undefined)).not.toBe(source);
+    expect(mergeHours([], source)).not.toBe(source);
+    expect(subtractHours(source, [])).not.toBe(source);
   });
 
   it('soustrait en saturant à zéro', () => {
@@ -39,31 +31,21 @@ describe('répartition horaire', () => {
     expect(subtractHours([9, 1, 14, 1], [9, 5])).toEqual([14, 1]);
   });
 
-  it('rend une répartition inconnue quand la soustraction annule tout', () => {
-    expect(subtractHours([9, 1], [9, 1])).toBeUndefined();
-    expect(subtractHours(undefined, [9, 1])).toBeUndefined();
+  it('rend une répartition vide quand la soustraction annule tout', () => {
+    expect(subtractHours([9, 1], [9, 1])).toEqual([]);
   });
 
-  it('compte les commits dont l\'heure est connue', () => {
+  it('compte les commits portés par la répartition', () => {
     expect(sumHours([9, 3, 14, 1])).toBe(4);
-    expect(sumHours(undefined)).toBe(0);
-  });
-
-  it('déplie sur 24 cases pour le graphique', () => {
-    const dense = unpackHours([9, 3, 23, 1]);
-    expect(dense).toHaveLength(24);
-    expect(dense[9]).toBe(3);
-    expect(dense[23]).toBe(1);
-    expect(dense[0]).toBe(0);
+    expect(sumHours([])).toBe(0);
   });
 
   it('écarte une répartition mal formée venue d\'un fichier édité à la main', () => {
-    expect(sanitizeHours([9, 1, 14])).toBeUndefined(); // longueur impaire
-    expect(sanitizeHours('9,1')).toBeUndefined();
-    expect(sanitizeHours([])).toBeUndefined();
-    expect(sanitizeHours([24, 1])).toBeUndefined(); // heure hors bornes
-    expect(sanitizeHours([-1, 1])).toBeUndefined();
-    expect(sanitizeHours([9, 0])).toBeUndefined(); // compteur nul
+    expect(sanitizeHours([9, 1, 14])).toEqual([]); // longueur impaire
+    expect(sanitizeHours('9,1')).toEqual([]);
+    expect(sanitizeHours([24, 1])).toEqual([]); // heure hors bornes
+    expect(sanitizeHours([-1, 1])).toEqual([]);
+    expect(sanitizeHours([9, 0])).toEqual([]); // compteur nul
   });
 
   it('normalise une répartition valide mais désordonnée', () => {

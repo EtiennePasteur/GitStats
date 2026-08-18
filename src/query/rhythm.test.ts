@@ -18,6 +18,7 @@ function bucket(overrides: Partial<DailyBucket> = {}): DailyBucket {
     deletions: 3,
     merges: 0,
     hourly: [9, 1],
+    hourlyMerges: [],
     ...overrides,
   };
 }
@@ -31,8 +32,6 @@ describe('rythme de travail', () => {
     expect(rhythm.hours[9]).toBe(3);
     expect(rhythm.hours[14]).toBe(1);
     expect(rhythm.hours[22]).toBe(1);
-    expect(rhythm.known).toBe(5);
-    expect(rhythm.total).toBe(5);
   });
 
   it("déduit le jour de la semaine de la date du seau, sans dérive de fuseau", () => {
@@ -41,33 +40,24 @@ describe('rythme de travail', () => {
     expect(rhythm.weekdays[0]).toBe(0);
   });
 
-  it('compte un seau sans heures dans les jours mais pas dans les heures', () => {
-    // Les seaux collectés avant l'introduction du champ : leur date reste exacte,
-    // seule l'heure est perdue. Masquer le jour jetterait une information juste.
-    const rhythm = rhythmFromBuckets([bucket({ commits: 5, hourly: undefined })]);
-    expect(rhythm.weekdays[1]).toBe(5);
-    expect(rhythm.hours.every((value) => value === 0)).toBe(true);
-    expect(rhythm.known).toBe(0);
-    expect(rhythm.total).toBe(5);
-  });
-
-  it('mesure la couverture en commits et non en seaux', () => {
-    // Un seau ancien qui reçoit de nouveaux commits est partiellement couvert :
-    // compter les seaux annoncerait 100 % là où la moitié des heures manque.
-    const rhythm = rhythmFromBuckets([
-      bucket({ commits: 7, hourly: [9, 3] }),
-      bucket({ projectKey: 'inst-b~4', commits: 2, hourly: [14, 2] }),
-    ]);
-    expect(rhythm.known).toBe(5);
-    expect(rhythm.total).toBe(9);
-  });
-
   it('rend des compteurs nuls sur un périmètre vide', () => {
     const rhythm = rhythmFromBuckets([]);
     expect(rhythm.hours).toHaveLength(24);
     expect(rhythm.weekdays).toHaveLength(7);
-    expect(rhythm.known).toBe(0);
-    expect(rhythm.total).toBe(0);
+    expect(rhythm.hours.every((value) => value === 0)).toBe(true);
+    expect(rhythm.weekdays.every((value) => value === 0)).toBe(true);
+  });
+
+  it('compte les mêmes commits dans les heures et dans les jours', () => {
+    // C'est ce qui garantit que le total du graphe égale le KPI « Commits »
+    // affiché juste au-dessus, quel que soit le filtre appliqué en amont.
+    const rhythm = rhythmFromBuckets([
+      bucket({ commits: 7, hourly: [9, 4, 14, 3] }),
+      bucket({ projectKey: 'inst-b~4', commits: 2, hourly: [22, 2] }),
+    ]);
+    const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+    expect(sum(rhythm.hours)).toBe(9);
+    expect(sum(rhythm.weekdays)).toBe(9);
   });
 
   it("n'altère pas les seaux qu'il lit", () => {

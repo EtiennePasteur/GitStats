@@ -573,33 +573,25 @@ export function LinesDelta({
 /**
  * Rythme de travail : heures de la journée et jours de la semaine.
  *
- * `showHours` permet de n'afficher que les jours de la semaine, seule moitié
- * calculable quand les seaux du périmètre ne portent pas d'heures — mieux vaut
- * un panneau juste que deux dont un inventé. `stale` marque une couverture
- * partielle.
+ * Deux panneaux empilés plutôt que deux cartes : ils répondent à la même
+ * question et se lisent d'un seul coup d'œil.
  */
 export function RhythmChart({
   hours,
   weekdays,
   palette,
   height = 200,
-  showHours = true,
   stale = false,
 }: {
   hours: number[];
   weekdays: number[];
   palette: Palette;
   height?: number;
-  showHours?: boolean;
   stale?: boolean;
 }) {
   const option = useMemo<EChartsOption>(() => {
     const maxHour = hours.reduce((best, value) => Math.max(best, value), 0);
     const maxDay = weekdays.reduce((best, value) => Math.max(best, value), 0);
-    // Seul, le panneau des jours occupe toute la hauteur au lieu de flotter en bas.
-    const dayGrid = showHours
-      ? { top: '64%', left: 44, right: 12, height: '26%' }
-      : { top: 24, left: 44, right: 12, bottom: 28 };
     return {
       animation: false,
       tooltip: {
@@ -610,27 +602,26 @@ export function RhythmChart({
           return `${p.name} — ${formatNumber(p.value)} commits`;
         },
       },
-      grid: [...(showHours ? [{ top: 24, left: 44, right: 12, height: '38%' }] : []), dayGrid],
+      grid: [
+        { top: 24, left: 44, right: 12, height: '38%' },
+        { top: '64%', left: 44, right: 12, height: '26%' },
+      ],
       xAxis: [
-        ...(showHours
-          ? [
-              {
-                gridIndex: 0,
-                type: 'category' as const,
-                data: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')} h`),
-                ...axisStyle(palette),
-                splitLine: { show: false },
-                axisLabel: {
-                  color: palette.textMuted,
-                  fontSize: 10,
-                  interval: 2,
-                  formatter: (value: string) => value.slice(0, 2),
-                },
-              },
-            ]
-          : []),
         {
-          gridIndex: showHours ? 1 : 0,
+          gridIndex: 0,
+          type: 'category',
+          data: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')} h`),
+          ...axisStyle(palette),
+          splitLine: { show: false },
+          axisLabel: {
+            color: palette.textMuted,
+            fontSize: 10,
+            interval: 2,
+            formatter: (value: string) => value.slice(0, 2),
+          },
+        },
+        {
+          gridIndex: 1,
           type: 'category',
           data: ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'],
           ...axisStyle(palette),
@@ -639,20 +630,16 @@ export function RhythmChart({
         },
       ],
       yAxis: [
-        ...(showHours
-          ? [
-              {
-                gridIndex: 0,
-                type: 'value' as const,
-                max: Math.max(1, maxHour),
-                ...axisStyle(palette),
-                axisLine: { show: false },
-                axisLabel: { show: false },
-              },
-            ]
-          : []),
         {
-          gridIndex: showHours ? 1 : 0,
+          gridIndex: 0,
+          type: 'value',
+          max: Math.max(1, maxHour),
+          ...axisStyle(palette),
+          axisLine: { show: false },
+          axisLabel: { show: false },
+        },
+        {
+          gridIndex: 1,
           type: 'value',
           max: Math.max(1, maxDay),
           ...axisStyle(palette),
@@ -661,22 +648,18 @@ export function RhythmChart({
         },
       ],
       series: [
-        ...(showHours
-          ? [
-              {
-                type: 'bar' as const,
-                xAxisIndex: 0,
-                yAxisIndex: 0,
-                barMaxWidth: 12,
-                itemStyle: { color: palette.series[0]!, borderRadius: [4, 4, 0, 0] as [number, number, number, number] },
-                data: hours,
-              },
-            ]
-          : []),
         {
           type: 'bar',
-          xAxisIndex: showHours ? 1 : 0,
-          yAxisIndex: showHours ? 1 : 0,
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          barMaxWidth: 12,
+          itemStyle: { color: palette.series[0]!, borderRadius: [4, 4, 0, 0] },
+          data: hours,
+        },
+        {
+          type: 'bar',
+          xAxisIndex: 1,
+          yAxisIndex: 1,
           barMaxWidth: 20,
           itemStyle: { color: palette.series[0]!, borderRadius: [4, 4, 0, 0] },
           // Lundi en premier : `weekdays` est indexé dimanche = 0.
@@ -684,7 +667,7 @@ export function RhythmChart({
         },
       ],
     };
-  }, [hours, weekdays, palette, showHours]);
+  }, [hours, weekdays, palette]);
 
   return <EChart option={option} height={height} stale={stale} aria-label="Rythme d'activité" />;
 }

@@ -28,7 +28,7 @@ import { saveToLinkedFile, getLinkedFileName } from './fileHandle';
 const TOKENS_KEY = 'gitstats.tokens';
 const TOKEN_PERSIST_KEY = 'gitstats.token.persist';
 
-export type AppStatus = 'booting' | 'onboarding' | 'ready';
+export type AppStatus = 'booting' | 'onboarding' | 'ready' | 'unavailable';
 
 /** Tokens en mémoire, indexés par instance. Jamais persistés en base ni exportés. */
 export type TokenMap = Record<string, string>;
@@ -49,6 +49,8 @@ interface AppState {
   isSyncing: boolean;
   linkedFileName: string | null;
   lastSaveError: string | null;
+  /** Message d'un stockage local inutilisable — voir `boot`. */
+  bootError: string | null;
 
   boot: () => Promise<void>;
   /** Valide le couple hôte/token puis ajoute l'instance. Renvoie l'instance créée. */
@@ -101,7 +103,6 @@ function storeTokens(tokens: TokenMap, remember: boolean): void {
 function makeMeta(config: SyncConfig, instances: GitLabInstance[], previous: StoredMeta | null): StoredMeta {
   const now = new Date();
   return {
-    schemaVersion: db.SCHEMA_VERSION,
     instances,
     window: { from: windowStart(config, now), until: now.toISOString() },
     lastSyncAt: previous?.lastSyncAt ?? null,
@@ -123,9 +124,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   isSyncing: false,
   linkedFileName: null,
   lastSaveError: null,
+  bootError: null,
 
   async boot() {
-    const dataset = await loadDataset();
+    // IndexedDB peut refuser de s'ouvrir : navigation privée, quota épuisé, ou
+    // base d'un schéma que cette version ne sait plus ouvrir. Sans ce filet,
+    // l'application resterait sur son squelette de chargement sans rien dire.
+    let dataset: Dataset;
+    try {
+      dataset = await loadDataset();
+    } catch (caught) {
+      set({
+        status: 'unavailable',
+        bootError: caught instanceof Error ? caught.message : String(caught),
+      });
+      return;
+    }
     const config = dataset.meta?.config ?? DEFAULT_SYNC_CONFIG;
     const instances = dataset.meta?.instances ?? [];
     const { tokens, remember } = readStoredTokens();

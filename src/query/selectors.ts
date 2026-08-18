@@ -158,7 +158,7 @@ export function filterBuckets(
         commits: net,
         merges: 0,
         hourly: subtractHours(bucket.hourly, bucket.hourlyMerges),
-        hourlyMerges: undefined,
+        hourlyMerges: [],
       });
     } else if (renamed) {
       // Copie : les seaux d'origine appartiennent au Dataset partagé et ne

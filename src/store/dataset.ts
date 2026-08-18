@@ -81,9 +81,6 @@ export function mergeBucketsInMemory(dataset: Dataset, buckets: DailyBucket[]): 
       existing.additions += bucket.additions;
       existing.deletions += bucket.deletions;
       existing.merges += bucket.merges;
-      // Un seau ancien, sans heures, qui reçoit de nouveaux commits devient
-      // PARTIELLEMENT couvert. C'est voulu : jeter les heures fraîches pour
-      // rester homogène perdrait une information exacte.
       existing.hourly = mergeHours(existing.hourly, bucket.hourly);
       existing.hourlyMerges = mergeHours(existing.hourlyMerges, bucket.hourlyMerges);
     }
