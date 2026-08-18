@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #0d0d0d; }
+    a { color: #f5f3ee; text-decoration: none; }
+    a:hover { color: #ffffff; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 1080px; position: relative; overflow: hidden; background: #0d0d0d; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #f5f3ee;">
+
+  <!-- Ourlet lumineux très bas en contraste : la page reste du papier, pas un néon -->
+  <div style="position: absolute; top: -260px; left: -180px; width: 900px; height: 700px; border-radius: 50%; background: radial-gradient(circle, rgb(57 135 229 / 0.16), transparent 68%); filter: blur(40px);"></div>
+
+  <!-- Bandeau de tête -->
+  <div style="position: relative; display: flex; align-items: baseline; gap: 18px; padding: 34px 64px 22px; border-bottom: 1px solid rgb(255 255 255 / 0.14);">
+    <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; letter-spacing: -0.01em;">Git<span style="font-style: italic; color: #6da7ec;">Stats</span></span>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: #85837a;">Édition 2026 · tableau de bord d'activité Git</span>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid rgb(255 255 255 / 0.22); font-size: 15px;">Voir la démo</a>
+      <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 22px; border-radius: 999px; background: #f5f3ee; color: #12120f; font-size: 15px; font-weight: 600;">Analyser mes repos</a>
+    </div>
+  </div>
+
+  <!-- Corps : titre à gauche, colophon à droite -->
+  <div style="position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 64px; padding: 74px 64px 0;">
+
+    <div>
+      <p style="margin: 0 0 30px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; letter-spacing: 0.2em; text-transform: uppercase; color: #85837a;">I. Le problème</p>
+
+      <h1 style="margin: 0 0 34px; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 92px; line-height: 0.96; letter-spacing: -0.015em; text-wrap: balance;">
+        Ce qui s'est vraiment passé sur <span style="font-style: italic; color: #6da7ec;">tous vos dépôts</span> cette année.
+      </h1>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 34px; max-width: 760px; margin-bottom: 44px;">
+        <p style="margin: 0; font-size: 17px; line-height: 1.62; color: #c3c2b7;">
+          GitLab répond dépôt par dépôt, et s'arrête net quand les dépôts vivent sur
+          plusieurs serveurs. Les outils qui savent le faire réclament un backend, une base,
+          un compte de service — donc une revue de sécurité et un token qui vit ailleurs que
+          chez vous.
+        </p>
+        <p style="margin: 0; font-size: 17px; line-height: 1.62; color: #c3c2b7;">
+          GitStats prend l'autre chemin : c'est une page statique. Votre navigateur appelle
+          lui-même l'API de chaque instance, agrège commits et lignes de code, et stocke le
+          résultat en local. <span style="color: #f5f3ee;">Le token ne quitte jamais l'onglet.</span>
+        </p>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <a href="#" style="display: flex; align-items: center; gap: 10px; height: 58px; padding: 0 30px; border-radius: 999px; background: #f5f3ee; color: #12120f; font-size: 17px; font-weight: 600;">
+          Analyser mes repos
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"></path></svg>
+        </a>
+        <a href="#" style="display: flex; align-items: center; gap: 10px; height: 58px; padding: 0 28px; border-radius: 999px; border: 1px solid rgb(255 255 255 / 0.22); font-size: 17px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m10 8 6 4-6 4V8Z"></path></svg>
+          Voir la démo
+        </a>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #85837a; line-height: 1.5;">sans token<br>pour la démo</span>
+      </div>
+    </div>
+
+    <!-- Colophon : ce qu'un lecteur technique vérifie avant de cliquer -->
+    <div style="border-left: 1px solid rgb(255 255 255 / 0.14); padding-left: 32px;">
+      <p style="margin: 0 0 22px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #85837a;">En bref</p>
+      <div style="display: flex; flex-direction: column; gap: 0;">
+        <sc-for list="{{facts}}" as="f" hint-placeholder-count="5">
+          <div style="display: flex; flex-direction: column; gap: 5px; padding: 15px 0; border-top: 1px solid rgb(255 255 255 / 0.10);">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #85837a;">{{f.k}}</span>
+            <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 25px; line-height: 1.1; color: {{f.color}}">{{f.v}}</span>
+            <span style="font-size: 13.5px; line-height: 1.5; color: #a5a399;">{{f.note}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sommaire en pied de page : la promesse d'un texte qui argumente -->
+  <div style="position: absolute; left: 64px; right: 64px; bottom: 76px;">
+    <div style="height: 1px; background: rgb(255 255 255 / 0.14); margin-bottom: 26px;"></div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px;">
+      <sc-for list="{{chapters}}" as="c" hint-placeholder-count="3">
+        <div style="display: flex; gap: 16px; align-items: baseline;">
+          <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; color: #6da7ec; line-height: 1;">{{c.no}}</span>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 16px; font-weight: 600;">{{c.title}}</span>
+            <span style="font-size: 14px; line-height: 1.5; color: #a5a399;">{{c.sub}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      facts: [
+        { k: 'Collecte', v: 'Directe', color: '#f5f3ee', note: 'le navigateur appelle /api/v4, sans intermédiaire' },
+        { k: 'Instances', v: 'Autant qu’il faut', color: '#6da7ec', note: 'agrégées dans les mêmes graphiques, personnes comprises' },
+        { k: 'Stockage', v: 'Chez vous', color: '#f5f3ee', note: 'IndexedDB, plus un fichier .json que vous placez où vous voulez' },
+        { k: 'Jetons', v: 'Jamais écrits', color: '#c98500', note: 'ni en base, ni dans le fichier exporté' },
+        { k: 'Licence', v: 'MIT', color: '#f5f3ee', note: 'build statique : GitHub Pages, S3, un nginx interne' },
+      ],
+      chapters: [
+        { no: 'II', title: 'Les décisions qui comptent', sub: 'merges non comptés, miroirs écartés, identités jamais fusionnées sans vous' },
+        { no: 'III', title: 'Le coût, mesuré', sub: 'un dépôt qui n’a pas bougé coûte zéro appel' },
+        { no: 'IV', title: 'Ce que ça refuse de mesurer', sub: 'une activité, pas une performance individuelle' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

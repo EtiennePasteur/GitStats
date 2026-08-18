@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; background: #0d0d0d; }
+    a { color: #3987e5; text-decoration: none; }
+    a:hover { color: #6da7ec; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 1080px; position: relative; overflow: hidden; background: #0d0d0d; font-family: 'Archivo', system-ui, sans-serif; color: #ffffff;">
+
+  <!-- Repères d'instrument : la page se présente comme un appareil de mesure -->
+  <div style="position: absolute; inset: 26px; border: 1px solid rgb(255 255 255 / 0.10); pointer-events: none;"></div>
+  <div style="position: absolute; top: 20px; left: 20px; width: 14px; height: 14px; border-top: 2px solid #3987e5; border-left: 2px solid #3987e5;"></div>
+  <div style="position: absolute; top: 20px; right: 20px; width: 14px; height: 14px; border-top: 2px solid #3987e5; border-right: 2px solid #3987e5;"></div>
+  <div style="position: absolute; bottom: 20px; left: 20px; width: 14px; height: 14px; border-bottom: 2px solid #3987e5; border-left: 2px solid #3987e5;"></div>
+  <div style="position: absolute; bottom: 20px; right: 20px; width: 14px; height: 14px; border-bottom: 2px solid #3987e5; border-right: 2px solid #3987e5;"></div>
+
+  <!-- Rail de tête -->
+  <div style="position: absolute; top: 27px; left: 27px; right: 27px; display: flex; align-items: center; gap: 18px; height: 62px; padding: 0 30px; border-bottom: 1px solid rgb(255 255 255 / 0.10);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; letter-spacing: -0.02em;">git<span style="color: #3987e5;">stats</span></span>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #898781;">client-side only</span>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 18px; border: 1px solid rgb(255 255 255 / 0.18); font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #ffffff;">Voir la démo</a>
+      <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 20px; background: #3987e5; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: #ffffff;">Analyser mes repos</a>
+    </div>
+  </div>
+
+  <!-- Corps -->
+  <div style="position: absolute; top: 128px; left: 57px; right: 57px; display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 56px;">
+
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 26px;">
+        <span style="display: block; width: 26px; height: 2px; background: #3987e5;"></span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #898781;">tableau de bord d'activité git</span>
+      </div>
+
+      <h1 style="margin: 0 0 26px; font-size: 53px; line-height: 1.04; letter-spacing: -0.03em; font-weight: 700; text-transform: uppercase; text-wrap: balance;">
+        Tout votre parc.<br>
+        <span style="color: #3987e5;">Zéro backend.</span>
+      </h1>
+
+      <p style="margin: 0 0 34px; font-size: 17.5px; line-height: 1.6; color: #c3c2b7;">
+        Une page statique qui interroge elle-même l'API de chaque instance GitLab avec votre
+        jeton, agrège commits et lignes de code, et garde tout en local. Rien à déployer,
+        rien à administrer, rien qui sort de votre machine.
+      </p>
+
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 38px;">
+        <a href="#" style="display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 26px; background: #3987e5; color: #ffffff; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500; box-shadow: 6px 6px 0 rgb(57 135 229 / 0.22);">
+          Analyser mes repos
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"></path></svg>
+        </a>
+        <a href="#" style="display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 24px; border: 1px solid rgb(255 255 255 / 0.18); color: #ffffff; font-family: 'JetBrains Mono', monospace; font-size: 15px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m10 8 6 4-6 4V8Z"></path></svg>
+          Voir la démo
+        </a>
+      </div>
+
+      <!-- Relevés : des faits de fonctionnement, pas des chiffres de parc -->
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: rgb(255 255 255 / 0.10); border: 1px solid rgb(255 255 255 / 0.10);">
+        <sc-for list="{{readouts}}" as="r" hint-placeholder-count="4">
+          <div style="background: #131413; padding: 18px 20px;">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #898781; margin-bottom: 10px;">{{r.k}}</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: {{r.color}}">{{r.v}}</div>
+            <div style="margin-top: 7px; font-size: 13px; line-height: 1.45; color: #a3a69f;">{{r.note}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- Panneau : l'application redessinée avec ses vrais jetons de style -->
+    <div style="border: 1px solid rgb(255 255 255 / 0.10); border-radius: 12px; background: #131413; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgb(255 255 255 / 0.10); background: #1a1a19;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #898781;">global</span>
+        <div style="display: flex; gap: 6px;">
+          <sc-for list="{{chips}}" as="c" hint-placeholder-count="4">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; padding: 3px 8px; border-radius: 6px; background: {{c.bg}}; color: {{c.fg}}">{{c.t}}</span>
+          </sc-for>
+        </div>
+        <div style="flex-grow: 1;"></div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #6d716a;">maj. il y a 2 min</span>
+      </div>
+
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+          <sc-for list="{{kpis}}" as="k" hint-placeholder-count="3">
+            <div style="border: 1px solid rgb(255 255 255 / 0.10); border-radius: 12px; background: #1a1a19; padding: 14px 16px;">
+              <div style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #898781;">{{k.label}}</div>
+              <div style="margin-top: 7px; font-size: 27px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; color: {{k.color}}">{{k.value}}</div>
+              <div style="margin-top: 7px; font-size: 11.5px; color: #6d716a;">{{k.hint}}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="border: 1px solid rgb(255 255 255 / 0.10); border-radius: 12px; background: #1a1a19; padding: 14px 16px;">
+          <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 2px;">Commits dans le temps</div>
+          <div style="font-size: 11px; color: #6d716a; margin-bottom: 12px;">par semaine · 5 contributeurs détaillés, le reste dans « Autres »</div>
+          <svg viewBox="0 0 700 190" style="width: 100%; height: 190px; display: block;">
+            <line x1="0" y1="38" x2="700" y2="38" stroke="#2c2c2a" stroke-width="1"></line>
+            <line x1="0" y1="76" x2="700" y2="76" stroke="#2c2c2a" stroke-width="1"></line>
+            <line x1="0" y1="114" x2="700" y2="114" stroke="#2c2c2a" stroke-width="1"></line>
+            <line x1="0" y1="152" x2="700" y2="152" stroke="#2c2c2a" stroke-width="1"></line>
+            <path d="{{layerA}}" fill="#38383566" stroke="#383835" stroke-width="1.5"></path>
+            <path d="{{layerB}}" fill="#3987e54d" stroke="#3987e5" stroke-width="1.5"></path>
+            <path d="{{layerC}}" fill="#d959264d" stroke="#d95926" stroke-width="1.5"></path>
+            <path d="{{layerD}}" fill="#199e704d" stroke="#199e70" stroke-width="1.5"></path>
+            <path d="{{layerE}}" fill="#9085e94d" stroke="#9085e9" stroke-width="1.5"></path>
+          </svg>
+        </div>
+
+        <div style="border: 1px solid rgb(255 255 255 / 0.10); border-radius: 12px; background: #1a1a19; padding: 14px 16px;">
+          <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 12px;">Activité quotidienne</div>
+          <div style="display: grid; grid-template-rows: repeat(7, 9px); grid-auto-flow: column; grid-auto-columns: 9px; gap: 3px;">
+            <sc-for list="{{cells}}" as="c" hint-placeholder-count="371">
+              <div style="width: 9px; height: 9px; border-radius: 2px; background: {{c.bg}}"></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; bottom: 46px; left: 57px; right: 57px; display: flex; align-items: center; gap: 22px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #6d716a;">
+    <span>MIT</span><span>·</span><span>build statique, routage par hash</span><span>·</span><span>jeton read_api, jamais écrit sur disque</span>
+    <div style="flex-grow: 1;"></div>
+    <span>démo sans jeton</span>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rand = (() => {
+      let seed = 424242;
+      return () => {
+        seed = (seed * 1103515245 + 12345) % 2147483648;
+        return seed / 2147483648;
+      };
+    })();
+
+    // Aires empilées : « Autres » est renvoyée en tête pour se poser au bas de
+    // la pile, comme dans le produit.
+    const palette = ['#383835', '#3987e5', '#d95926', '#199e70', '#9085e9'];
+    const pts = 42;
+    const series = palette.map((color, s) => {
+      const values = [];
+      for (let i = 0; i < pts; i++) {
+        const wave = Math.sin((i / pts) * Math.PI * (2 + s * 0.6) + s) * 0.5 + 0.5;
+        values.push(6 + wave * (10 + s * 3) + rand() * 6);
+      }
+      return { color, values };
+    });
+
+    const w = 700;
+    const h = 190;
+    const maxTotal = Math.max(
+      ...Array.from({ length: pts }, (_, i) => series.reduce((sum, s) => sum + s.values[i], 0)),
+    );
+    const x = (i) => (i / (pts - 1)) * w;
+    const y = (v) => h - (v / (maxTotal * 1.06)) * h;
+
+    const base = new Array(pts).fill(0);
+    const layers = series.map((s) => {
+      const top = s.values.map((v, i) => base[i] + v);
+      let d = `M ${x(0)} ${y(top[0])}`;
+      for (let i = 1; i < pts; i++) d += ` L ${x(i)} ${y(top[i])}`;
+      for (let i = pts - 1; i >= 0; i--) d += ` L ${x(i)} ${y(base[i])}`;
+      d += ' Z';
+      for (let i = 0; i < pts; i++) base[i] = top[i];
+      return { d };
+    });
+
+    const steps = ['#16232f', '#0d366b', '#184f95', '#256abf', '#3183dd', '#3987e5'];
+    const cells = [];
+    for (let col = 0; col < 53; col++) {
+      for (let row = 0; row < 7; row++) {
+        const r = rand();
+        const intensity = row >= 5 ? r * 0.3 : 0.2 + r * 0.8;
+        cells.push({ bg: intensity < 0.12 ? '#222221' : steps[Math.min(5, Math.floor(intensity * 6))] });
+      }
+    }
+
+    return {
+      layerA: layers[0].d,
+      layerB: layers[1].d,
+      layerC: layers[2].d,
+      layerD: layers[3].d,
+      layerE: layers[4].d,
+      cells,
+      chips: [
+        { t: '12 mois', bg: '#3987e5', fg: '#ffffff' },
+        { t: 'instance A', bg: 'rgb(255 255 255 / 0.06)', fg: '#a3a69f' },
+        { t: 'instance B', bg: 'rgb(255 255 255 / 0.06)', fg: '#a3a69f' },
+        { t: 'merges masqués', bg: 'rgb(255 255 255 / 0.06)', fg: '#a3a69f' },
+      ],
+      kpis: [
+        { label: 'Commits', value: '—', color: '#ffffff', hint: 'sur la période choisie' },
+        { label: 'Lignes ajoutées', value: '—', color: '#3987e5', hint: 'hors commits de merge' },
+        { label: 'Contributeurs', value: '—', color: '#ffffff', hint: 'identités rapprochées' },
+      ],
+      readouts: [
+        { k: 'Collecte', v: 'directe', color: '#ffffff', note: 'navigateur → /api/v4, sans intermédiaire' },
+        { k: 'Instances', v: 'n', color: '#9085e9', note: 'en parallèle, un limiteur de débit chacune' },
+        { k: 'Dépôt inchangé', v: '0 appel', color: '#4ecfa0', note: 'l’incrémental ne repaie pas ce qui n’a pas bougé' },
+        { k: 'Jeton', v: 'read_api', color: '#c98500', note: 'jamais écrit en base ni dans l’export' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
