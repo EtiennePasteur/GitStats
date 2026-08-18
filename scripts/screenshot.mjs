@@ -8,7 +8,7 @@
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
 
-const URL_BASE = process.argv[2] ?? 'http://127.0.0.1:4300';
+const URL_BASE = process.argv[2] ?? 'http://127.0.0.1:4300/GitStats';
 const DATA = process.argv[3] ?? '/tmp/demo-gitstats.json';
 const OUT = '/tmp/gitstats-shots';
 

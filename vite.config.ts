@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+  // GitHub Pages sert un dépôt projet sous /<nom-du-dépôt>/ : sans cette base,
+  // les URLs d'assets pointeraient à la racine du domaine et la page resterait
+  // blanche. À changer si le dépôt est renommé.
+  base: '/GitStats/',
   plugins: [react(), tailwindcss()],
   server: { port: 4300 },
   build: {

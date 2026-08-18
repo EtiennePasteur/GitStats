@@ -5,7 +5,7 @@ backend, aucun proxy. Le navigateur appelle directement chaque API GitLab avec s
 Personal Access Token, agrège, et stocke en IndexedDB.
 
 ```bash
-npm run dev          # http://localhost:4300
+npm run dev          # http://localhost:4300/GitStats/ (base GitHub Pages)
 npm test             # 185 tests, ~1,3 s
 npm run lint         # tsc -b --noEmit (strict, noUncheckedIndexedAccess)
 npm run build

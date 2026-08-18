@@ -13,6 +13,10 @@
   <a href="LICENSE"><img alt="Licence MIT" src="https://img.shields.io/badge/licence-MIT-blue"></a>
 </p>
 
+<p align="center">
+  <a href="https://etiennepasteur.github.io/GitStats/"><strong>Ouvrir l'application →</strong></a>
+</p>
+
 ![Vue globale : KPI, calendrier d'activité, commits par contributeur, volume de code et répartition par dépôt](docs/screenshots/global.png)
 
 ---
@@ -42,14 +46,19 @@ token ne quitte jamais l'onglet.
 
 ## Essayer en deux minutes, sans token
 
-Un générateur produit un jeu de données réaliste (2 instances, 234 dépôts,
+L'application est publiée telle quelle sur GitHub Pages :
+**<https://etiennepasteur.github.io/GitStats/>**. C'est le build du dépôt,
+sans rien de plus : le serveur ne fait que livrer des fichiers, et vous pouvez
+y importer un `.json` exporté depuis une autre installation.
+
+Pour la faire tourner chez vous, un générateur produit un jeu de données réaliste (2 instances, 234 dépôts,
 12 mois, un dépôt mirroré, des identités en double) : de quoi voir l'interface
 en vraie grandeur sans solliciter le moindre GitLab.
 
 ```bash
 npm install
 npm run demo:data   # écrit demo-gitstats.json
-npm run dev         # http://localhost:4300
+npm run dev         # http://localhost:4300/GitStats/
 ```
 
 Sur l'écran d'accueil, **« Importer un .json »** → `demo-gitstats.json`.
@@ -278,24 +287,34 @@ généralement une bonne journée de travail.
 
 ## Déploiement
 
+`.github/workflows/deploy.yml` publie l'application sur GitHub Pages à chaque
+push sur `main` : `npm ci`, tests, `npm run build`, puis mise en ligne de
+`dist/`. Aucun secret, aucune variable d'environnement — le build ne lit rien
+d'autre que les sources.
+
 ```bash
 npm run build     # → dist/, statique
+npm run preview   # http://localhost:4173/GitStats/
 ```
 
 Le routage se fait **par hash**, donc `dist/` se dépose tel quel sur n'importe
 quel hébergement statique — GitHub Pages, S3, un `nginx`, un partage interne —
-sans aucune règle de réécriture côté serveur. Pour un déploiement dans un
-sous-chemin, renseignez `base` dans `vite.config.ts`.
+sans aucune règle de réécriture côté serveur. La publication visant un
+sous-chemin, `base` vaut `/GitStats/` dans `vite.config.ts` : pour servir
+l'application ailleurs, c'est la seule valeur à changer.
 
 Héberger l'application ne change rien au modèle : le serveur ne sert que des
-fichiers, il ne voit ni les tokens, ni les données.
+fichiers, il ne voit ni les tokens, ni les données. Une réserve propre à un
+hébergement en HTTPS, en revanche : le navigateur refuse les appels vers une
+instance GitLab en `http://` (contenu mixte). Une instance servie en clair
+n'est joignable que depuis une copie lancée en local.
 
 ---
 
 ## Développement
 
 ```bash
-npm run dev          # serveur de développement, http://localhost:4300
+npm run dev          # serveur de développement, http://localhost:4300/GitStats/
 npm test             # 185 tests (Vitest)
 npm run lint         # typecheck strict (tsc --noEmit)
 npm run build        # build de production
