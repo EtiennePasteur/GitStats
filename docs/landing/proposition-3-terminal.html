@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitStats — 234 dépôts, 2 GitLab, 0 backend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ Proposition 3 — « Terminal / dev-first »
+   Grille apparente, monospace, encadrés ASCII. Pour un public qui lit
+   un README avant une brochure — et qui veut le coût en appels API. ═══ */
+
+:root {
+  --bg: #0b0c0b;
+  --bg-2: #131413;
+  --bg-3: #1b1d1b;
+  --line: #2a2d2a;
+  --line-2: #3d413d;
+  --fg: #e8e8e2;
+  --fg-2: #a3a69f;
+  --fg-3: #6d716a;
+  --green: #35d07f;
+  --blue: #4d9bf0;
+  --amber: #f0b429;
+  --red: #ef6a5f;
+  --violet: #a99cf5;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --max: 1120px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--mono); font-size: 15px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / .022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / .022) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; display: block; }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 22px; }
+.sans { font-family: var(--sans); }
+
+/* ─── En-tête ─── */
+header {
+  position: sticky; top: 0; z-index: 40;
+  background: rgb(11 12 11 / .92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.nav { display: flex; align-items: center; gap: 18px; height: 58px; font-size: 13.5px; }
+.logo { color: var(--fg); font-weight: 700; letter-spacing: -.02em; font-size: 16px; }
+.logo b { color: var(--green); }
+.nav .sep { color: var(--fg-3); }
+.nav-links { display: flex; gap: 18px; color: var(--fg-2); }
+.nav-links a { color: var(--fg-2); }
+.nav-links a:hover { color: var(--green); }
+.nav-right { margin-left: auto; display: flex; gap: 10px; }
+
+/* ─── Boutons ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 14px; font-weight: 500;
+  padding: 12px 20px; border: 1px solid var(--line-2);
+  background: var(--bg-2); color: var(--fg);
+  transition: all .15s ease; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { text-decoration: none; }
+.btn-go {
+  background: var(--green); border-color: var(--green); color: #05170e; font-weight: 700;
+  box-shadow: 4px 4px 0 rgb(53 208 127 / .22);
+}
+.btn-go:hover { transform: translate(-1px,-1px); box-shadow: 6px 6px 0 rgb(53 208 127 / .3); }
+.btn-alt:hover { border-color: var(--fg-2); background: var(--bg-3); }
+.nav .btn { padding: 8px 14px; font-size: 13px; box-shadow: none; }
+
+/* ─── Hero ─── */
+.hero { padding: 74px 0 60px; }
+.prompt { color: var(--fg-3); font-size: 13.5px; margin-bottom: 22px; }
+.prompt b { color: var(--green); font-weight: 400; }
+h1 {
+  font-family: var(--sans); font-weight: 600;
+  font-size: clamp(34px, 5.6vw, 58px); line-height: 1.08;
+  letter-spacing: -.035em; margin: 0 0 22px; max-width: 17ch;
+}
+h1 .g { color: var(--green); }
+h1 .b { color: var(--blue); }
+.lede { font-family: var(--sans); font-size: 18px; color: var(--fg-2); max-width: 610px; margin: 0 0 32px; line-height: 1.6; }
+.cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-flags { margin-top: 26px; font-size: 13px; color: var(--fg-3); display: flex; gap: 18px; flex-wrap: wrap; }
+.hero-flags b { color: var(--fg-2); font-weight: 400; }
+
+/* ─── Bloc terminal ─── */
+.term {
+  border: 1px solid var(--line-2); background: #080908;
+  margin-top: 44px; font-size: 13.5px; line-height: 1.9;
+}
+.term-bar {
+  border-bottom: 1px solid var(--line); padding: 8px 14px;
+  color: var(--fg-3); font-size: 12px; display: flex; gap: 10px; align-items: center;
+}
+.term-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line-2); display: inline-block; }
+.term-body { padding: 18px 18px 20px; overflow-x: auto; }
+.term-body div { white-space: pre; }
+.c-g { color: var(--green); } .c-b { color: var(--blue); }
+.c-a { color: var(--amber); } .c-d { color: var(--fg-3); }
+.c-v { color: var(--violet); } .c-r { color: var(--red); }
+.cursor { display: inline-block; width: 8px; height: 15px; background: var(--green); vertical-align: -2px; animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ─── Séparateurs de section ─── */
+section { padding: 74px 0; border-top: 1px solid var(--line); }
+.tag {
+  color: var(--green); font-size: 12.5px; letter-spacing: .1em;
+  text-transform: uppercase; margin: 0 0 14px;
+}
+h2 {
+  text-wrap: balance;
+  font-family: var(--sans); font-weight: 600; letter-spacing: -.03em;
+  font-size: clamp(26px, 3.6vw, 36px); line-height: 1.15; margin: 0 0 14px;
+}
+.sub { font-family: var(--sans); color: var(--fg-2); max-width: 640px; margin: 0 0 38px; font-size: 16.5px; }
+
+/* ─── Grille de boîtes ─── */
+.boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); }
+.box { padding: 26px 24px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg-2); }
+.box:nth-child(3n) { border-right: 0; }
+.box:nth-last-child(-n+3) { border-bottom: 0; }
+.box .n { font-size: 12px; color: var(--fg-3); margin-bottom: 12px; }
+.box h3 { font-family: var(--sans); font-size: 17px; letter-spacing: -.02em; margin: 0 0 8px; font-weight: 600; }
+.box p { font-family: var(--sans); font-size: 14.5px; color: var(--fg-2); margin: 0; }
+.box:hover { background: var(--bg-3); }
+
+/* ─── KPI ─── */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid var(--line); margin-bottom: 44px; }
+.kpi { padding: 22px; border-right: 1px solid var(--line); background: var(--bg-2); }
+.kpi:last-child { border-right: 0; }
+.kpi b { display: block; font-size: 27px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+.kpi span { font-family: var(--sans); font-size: 13px; color: var(--fg-3); }
+
+/* ─── ASCII / diagramme ─── */
+.ascii {
+  border: 1px solid var(--line-2); background: var(--bg-2);
+  padding: 22px; overflow-x: auto; font-size: 13px; line-height: 1.75;
+  color: var(--fg-2); white-space: pre;
+}
+
+/* ─── Tableau ─── */
+table { width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid var(--line); background: var(--bg-2); }
+th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { color: var(--fg-3); font-weight: 500; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; background: var(--bg-3); }
+td.n { color: var(--fg); white-space: nowrap; }
+.ok { color: var(--green); } .no { color: var(--red); } .warn { color: var(--amber); }
+
+/* ─── Captures ─── */
+.shots { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.shot { border: 1px solid var(--line-2); background: #101010; }
+.shot-head { border-bottom: 1px solid var(--line); padding: 8px 12px; font-size: 12px; color: var(--fg-3); }
+.shot-head b { color: var(--fg-2); font-weight: 500; }
+.shot.full { grid-column: 1 / -1; }
+
+/* ─── Callout ─── */
+.callout {
+  border: 1px solid var(--line-2); border-left: 3px solid var(--amber);
+  background: var(--bg-2); padding: 20px 22px; font-family: var(--sans);
+  color: var(--fg-2); font-size: 15px; margin-top: 26px;
+}
+.callout b { color: var(--fg); }
+
+/* ─── Périmètre ─── */
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); }
+.scope > div { padding: 26px; background: var(--bg-2); }
+.scope > div:first-child { border-right: 1px solid var(--line); }
+.scope h3 { font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-3); margin: 0 0 16px; font-weight: 500; }
+.scope ul { list-style: none; margin: 0; padding: 0; font-family: var(--sans); font-size: 15px; }
+.scope li { padding: 7px 0; color: var(--fg-2); display: flex; gap: 10px; }
+.scope li > span:first-child { font-family: var(--mono); flex: none; }
+.scope li em { font-style: normal; color: var(--fg-3); }
+
+/* ─── CTA final ─── */
+.final { border: 1px solid var(--line-2); background: var(--bg-2); padding: 56px 40px; text-align: center; position: relative; }
+.final::before, .final::after {
+  content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid var(--green);
+}
+.final::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.final::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+.final h2 { max-width: none; }
+.final .sub { margin: 0 auto 30px; }
+.final .cta-row { justify-content: center; }
+.final .fine { font-size: 12.5px; color: var(--fg-3); margin-top: 24px; }
+
+/* ─── Pied ─── */
+footer { border-top: 1px solid var(--line); padding: 28px 0 50px; color: var(--fg-3); font-size: 13px; }
+.foot { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .boxes { grid-template-columns: 1fr; }
+  .box { border-right: 0; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .kpi:nth-child(2n) { border-right: 0; }
+  .shots, .scope { grid-template-columns: 1fr; }
+  .scope > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+  .nav-links { display: none; }
+  section { padding: 56px 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <span class="logo">git<b>stats</b></span>
+    <span class="sep">|</span>
+    <nav class="nav-links">
+      <a href="#pourquoi">./pourquoi</a>
+      <a href="#collecte">./collecte</a>
+      <a href="#donnees">./donnees</a>
+      <a href="#perimetre">./perimetre</a>
+    </nav>
+    <div class="nav-right">
+      <a class="btn btn-alt" href="#demo">Voir la démo</a>
+      <a class="btn btn-go" href="#analyser">Analyser mes repos</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ═══ HERO ═══ -->
+  <div class="wrap hero">
+    <p class="prompt"><b>$</b> gitstats --instances 2 --depots 234 --backend <span class="c-r">none</span></p>
+    <h1>234 dépôts. 2 GitLab.<br><span class="g">0 backend.</span></h1>
+    <p class="lede">
+      Un tableau de bord d'activité Git qui tourne <b>entièrement dans votre navigateur</b> :
+      il appelle lui-même l'API de chaque instance avec votre token, agrège commits et lignes
+      de code, et stocke tout en IndexedDB. Rien à déployer, rien à administrer, rien qui sort
+      de votre machine.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-go" href="#analyser">▶ Analyser mes repos</a>
+      <a class="btn btn-alt" href="#demo">Voir la démo &nbsp;·&nbsp; sans token</a>
+    </div>
+    <div class="hero-flags">
+      <span><b>--license</b> MIT</span>
+      <span><b>--scope</b> read_api</span>
+      <span><b>--stack</b> React 19 · TS strict · Vite</span>
+      <span><b>--deploy</b> dossier statique</span>
+    </div>
+
+    <div class="term">
+      <div class="term-bar"><i></i><i></i><i></i> &nbsp;sync — instance A + instance B</div>
+      <div class="term-body">
+<div><span class="c-d">[vague 0]</span> découverte des projets ................ <span class="c-g">234 dépôts</span>  <span class="c-d">3 appels</span></div>
+<div><span class="c-d">[vague 1]</span> aperçu contributeurs ................ <span class="c-g">OK</span>  <span class="c-d">~40 s, classement lisible</span></div>
+<div><span class="c-d">[vague 2]</span> historique daté <span class="c-d">(12 mois)</span> ......... <span class="c-b">1 843 appels</span></div>
+<div><span class="c-a">[limiteur]</span> 429 reçu → débit /2 → remontée additive <span class="c-d">(AIMD)</span></div>
+<div><span class="c-v">[miroirs]</span>  SHA partagé entre A et B ............ <span class="c-a">1 doublon écarté</span></div>
+<div><span class="c-v">[identités]</span> fusion auto sur e-mail ............. <span class="c-g">7</span> <span class="c-d">· 4 suggérées, en attente</span></div>
+<div><span class="c-g">[terminé]</span>  152 480 seaux écrits ............... <span class="c-g">9 s</span></div>
+<div class="c-d">tokens écrits sur disque : 0 — données envoyées à un tiers : 0</div>
+<div><span class="c-g">$</span> <span class="cursor"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ POURQUOI ═══ -->
+  <section id="pourquoi">
+    <div class="wrap">
+      <p class="tag">// le problème</p>
+      <h2>GitLab répond pour un dépôt. Pas pour un parc.</h2>
+      <p class="sub">
+        Et les outils qui savent le faire demandent un backend, une base, un compte de service —
+        donc une décision d'hébergement, une revue de sécurité, et un token qui vit ailleurs que chez vous.
+      </p>
+
+      <div class="ascii">
+<span class="c-r">✗ la voie habituelle</span>
+   navigateur ──▶ <span class="c-r">backend</span> ──▶ <span class="c-r">base</span> ──▶ gitlab
+                  ▲ à héberger  ▲ à sauvegarder
+                  ▲ à sécuriser ▲ token de service qui vit chez elle
+
+<span class="c-g">✓ gitstats</span>
+   navigateur ─────────────────────────────▶ gitlab A
+        │  token en sessionStorage          ▶ gitlab B
+        └─▶ IndexedDB + fichier .json <span class="c-d">(chez vous)</span>
+      </div>
+
+      <div class="boxes" style="margin-top:26px">
+        <div class="box">
+          <p class="n">01</p><h3>Multi-instances natif</h3>
+          <p>Plusieurs GitLab dans les mêmes graphiques. Un limiteur de débit par serveur, traitement en parallèle, et un token expiré n'arrête que son instance.</p>
+        </div>
+        <div class="box">
+          <p class="n">02</p><h3>Incrémental agressif</h3>
+          <p>Un dépôt qui n'a pas bougé coûte zéro appel — <code>last_activity_at</code> arrive gratuitement dans la liste des projets.</p>
+        </div>
+        <div class="box">
+          <p class="n">03</p><h3>Identités rapprochées</h3>
+          <p>Fusion automatique sur e-mail identique, suggestions groupées par indice pour le reste. Résolues à la lecture : instantané et réversible.</p>
+        </div>
+        <div class="box">
+          <p class="n">04</p><h3>Miroirs détectés</h3>
+          <p>Deux dépôts qui partagent un SHA sont le même code. Certain, quasi gratuit — et sans ça, un miroir gonfle silencieusement tous les classements.</p>
+        </div>
+        <div class="box">
+          <p class="n">05</p><h3>Dépôts ignorables</h3>
+          <p>Le dépôt de config que toute l'équipe touche sort des statistiques d'un clic, sans sortir de la collecte. Réversible.</p>
+        </div>
+        <div class="box">
+          <p class="n">06</p><h3>Déploiement trivial</h3>
+          <p><code>npm run build</code> → un dossier statique, routage par hash. GitHub Pages, S3, un nginx interne : aucune règle de réécriture.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CAPTURES ═══ -->
+  <section>
+    <div class="wrap">
+      <p class="tag">// les écrans</p>
+      <h2>Quatre lectures, une seule barre de filtres</h2>
+      <p class="sub">Période, instances, dépôts, personnes, merges masqués ou non — tout se repeint immédiatement, sans re-synchroniser.</p>
+      <div class="shots">
+        <div class="shot full">
+          <div class="shot-head"><b>~/global</b> — KPI, calendrier d'activité, commits par contributeur, volume de code</div>
+          <img src="../screenshots/global.png" alt="Vue globale de GitStats">
+        </div>
+        <div class="shot">
+          <div class="shot-head"><b>~/depots</b> — tri, filtres, tendance, fraîcheur de collecte</div>
+          <img src="../screenshots/projets.png" alt="Liste des dépôts">
+        </div>
+        <div class="shot">
+          <div class="shot-head"><b>~/personnes/:id</b> — rythme horaire et hebdomadaire</div>
+          <img src="../screenshots/personne-detail.png" alt="Fiche d'une personne">
+        </div>
+        <div class="shot">
+          <div class="shot-head"><b>~/comparer</b> — 2 à 5 personnes, courbes non empilées + radar</div>
+          <img src="../screenshots/comparer.png" alt="Comparaison de contributeurs">
+        </div>
+        <div class="shot">
+          <div class="shot-head"><b>~/reglages/identites</b> — rapprochements proposés, jamais imposés</div>
+          <img src="../screenshots/identites.png" alt="Rapprochements d'identités">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ COLLECTE ═══ -->
+  <section id="collecte">
+    <div class="wrap">
+      <p class="tag">// la collecte</p>
+      <h2>Trois vagues, un coût mesuré</h2>
+      <p class="sub">La vague 1 rend un classement utilisable en ~40 secondes pendant que la vague 2 travaille. Ses chiffres sont all-time : un aperçu, jamais la source des graphiques temporels.</p>
+
+      <table>
+        <thead><tr><th>Vague</th><th>Endpoint</th><th>Coût</th></tr></thead>
+        <tbody>
+          <tr><td class="n">0 — découverte</td><td><code>GET /projects?membership=true&amp;simple=true</code></td><td class="n">~3 appels</td></tr>
+          <tr><td class="n">1 — aperçu</td><td><code>GET /projects/:id/repository/contributors</code></td><td class="n">1 / dépôt</td></tr>
+          <tr><td class="n">2 — historique</td><td><code>GET /projects/:id/repository/commits?since=…&amp;with_stats=true</code></td><td class="n">N / dépôt</td></tr>
+        </tbody>
+      </table>
+
+      <div class="kpis" style="margin-top:26px;margin-bottom:0">
+        <div class="kpi"><b class="c-b">~2 000</b><span>appels au 1<sup>er</sup> sync (234 dépôts, 12 mois)</span></div>
+        <div class="kpi"><b class="c-g">&lt; 100</b><span>appels aux syncs suivants</span></div>
+        <div class="kpi"><b class="c-a">3–7 min</b><span>première collecte complète</span></div>
+        <div class="kpi"><b class="c-g">&lt; 30 s</b><span>collecte incrémentale</span></div>
+      </div>
+
+      <div class="callout">
+        <b>Le limiteur se calibre tout seul.</b> Les en-têtes <code>RateLimit-*</code> et <code>Retry-After</code>
+        ne sont pas exposés en cross-origin : impossible de piloter le débit dessus. Le seul signal observable
+        depuis un navigateur est le <b>429</b> — d'où un token bucket + AIMD (débit divisé par deux sur incident,
+        remontée additive ensuite) et un backoff exponentiel avec <em>full jitter</em>. Le plafond visé se règle
+        dans l'écran Réglages.
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ VÉRIFIÉ ═══ -->
+  <section>
+    <div class="wrap">
+      <p class="tag">// vérifié, pas supposé</p>
+      <h2>Le pari « 100 % client » repose sur des mesures</h2>
+      <p class="sub">Toutes prises sur une instance auto-hébergée avant d'écrire la première ligne de code.</p>
+      <table>
+        <thead><tr><th>Point</th><th>Résultat</th></tr></thead>
+        <tbody>
+          <tr><td class="n">CORS sur <code>/api/v4</code></td><td><span class="ok">✓</span> <code>access-control-allow-origin: *</code>, préflight <code>OPTIONS</code> + <code>PRIVATE-TOKEN</code> → 200</td></tr>
+          <tr><td class="n">En-têtes de pagination</td><td><span class="ok">✓</span> <code>Link</code>, <code>X-Total</code>, <code>X-Next-Page</code>, <code>ETag</code> exposés</td></tr>
+          <tr><td class="n"><code>RateLimit-*</code> / <code>Retry-After</code></td><td><span class="no">✗</span> non exposés en cross-origin → auto-régulation obligatoire</td></tr>
+          <tr><td class="n"><code>X-Total-Pages</code> sur les commits</td><td><span class="no">✗</span> non renvoyé → pagination via <code>Link rel="next"</code></td></tr>
+          <tr><td class="n">30 000 seaux en IndexedDB</td><td><span class="warn">⚠</span> 24 s avec 3 index ; 2 jamais interrogés → supprimés + écriture par lots ⇒ <span class="ok">9 s</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ DONNÉES ═══ -->
+  <section id="donnees">
+    <div class="wrap">
+      <p class="tag">// vos données</p>
+      <h2>Le token ne quitte jamais l'onglet</h2>
+      <p class="sub">Héberger l'application ne change rien : le serveur ne livre que des fichiers, il ne voit ni les tokens ni les données.</p>
+      <div class="boxes">
+        <div class="box">
+          <p class="n">sessionStorage</p><h3>Tokens jamais écrits</h3>
+          <p>Ni en IndexedDB, ni dans le <code>.json</code> exporté. <code>localStorage</code> uniquement sur choix explicite, indexé par instance.</p>
+        </div>
+        <div class="box">
+          <p class="n">IndexedDB</p><h3>Aucun commit brut archivé</h3>
+          <p>Agrégation en seaux (dépôt, auteur, jour) dès l'ingestion. Seuls les seaux et les 100 derniers commits par dépôt sont conservés.</p>
+        </div>
+        <div class="box">
+          <p class="n">File System Access</p><h3>Un <code>.json</code> chez vous</h3>
+          <p>Réécrit automatiquement pendant les syncs, posé où vous voulez : partage réseau, dépôt privé. Il ne contient aucun secret.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PÉRIMÈTRE ═══ -->
+  <section id="perimetre">
+    <div class="wrap">
+      <p class="tag">// périmètre</p>
+      <h2>Ce que ça mesure — et ce que ça refuse de mesurer</h2>
+      <p class="sub">
+        Ces chiffres décrivent une <strong style="color:var(--fg)">activité</strong>, pas une productivité et
+        encore moins une performance individuelle. Un refactoring qui supprime 3 000 lignes est
+        généralement une bonne journée de travail.
+      </p>
+      <div class="scope">
+        <div>
+          <h3>in scope</h3>
+          <ul>
+            <li><span class="ok">✓</span><span>Commits — branche principale par défaut</span></li>
+            <li><span class="ok">✓</span><span>Lignes ajoutées / supprimées</span></li>
+            <li><span class="ok">✓</span><span>Contributeurs, jours actifs, rythme horaire</span></li>
+            <li><span class="ok">✓</span><span>Plusieurs instances GitLab agrégées</span></li>
+            <li><span class="ok">✓</span><span>Import / export d'un jeu de données</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>out of scope <span style="color:var(--fg-3);text-transform:none;letter-spacing:0">— volontairement</span></h3>
+          <ul>
+            <li><span class="no">✗</span><span>Merge requests, issues, pipelines CI</span></li>
+            <li><span class="no">✗</span><span>Lignes des commits de merge <em>(doubleraient tout dépôt qui merge)</em></span></span></li>
+            <li><span class="no">✗</span><span>Fusion d'identités automatique au-delà de l'e-mail exact</span></li>
+            <li><span class="no">✗</span><span>Rattrapage d'un merge de branche vieille de &gt; 7 jours <em>(→ « Tout resynchroniser »)</em></span></span></li>
+            <li><span class="no">✗</span><span>Instance GitLab en <code>http://</code> depuis une page HTTPS</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CTA FINAL ═══ -->
+  <section id="analyser" style="border-top:0">
+    <div class="wrap">
+      <div class="final">
+        <p class="tag">// 2 minutes, 0 installation</p>
+        <h2>Regardez d'abord. Branchez ensuite.</h2>
+        <p class="sub">
+          La démo tourne sur un jeu de données réaliste — 2 instances, 234 dépôts, 12 mois, un dépôt
+          mirroré, des identités en double — sans solliciter le moindre GitLab. Pour vos vrais chiffres :
+          une URL d'instance, un token <code>read_api</code>, et c'est parti.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-go" href="#">▶ Analyser mes repos</a>
+          <a class="btn btn-alt" id="demo" href="#">Voir la démo &nbsp;·&nbsp; sans token</a>
+        </div>
+        <p class="fine">aucun compte · aucune carte · aucun ticket à l'IT · <code>git clone</code> et c'est à vous</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>gitstats — tableau de bord d'activité Git, 100 % client.</span>
+    <span>MIT · React 19 · TypeScript strict · Vite · 247 tests</span>
+  </div>
+</footer>
+</body>
+</html>

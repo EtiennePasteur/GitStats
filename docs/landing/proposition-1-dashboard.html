@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitStats — L'activité de tout votre parc GitLab, sans backend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ Proposition 1 — « Produit dashboard »
+   Surface sombre du produit, halos de couleur, captures encadrées.
+   Palette = tokens réels de src/styles/index.css. ═══ */
+
+:root {
+  --surface-1: #1a1a19;
+  --surface-2: #222221;
+  --plane: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --border: rgb(255 255 255 / 0.10);
+  --border-strong: rgb(255 255 255 / 0.18);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --s4: #c98500; --s5: #d55181; --s7: #9085e9;
+  --good: #0ca30c;
+  --radius: 16px;
+  --max: 1140px;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+.wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+/* ─── Halos d'arrière-plan ─── */
+.glow { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.glow::before, .glow::after {
+  content: ''; position: absolute; border-radius: 50%; filter: blur(120px);
+}
+.glow::before {
+  width: 720px; height: 720px; top: -320px; left: -180px;
+  background: radial-gradient(circle, rgb(57 135 229 / .28), transparent 70%);
+}
+.glow::after {
+  width: 620px; height: 620px; top: -220px; right: -220px;
+  background: radial-gradient(circle, rgb(144 133 233 / .22), transparent 70%);
+}
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / .028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / .028) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 90% 50% at 50% 0%, #000 30%, transparent 75%);
+}
+main, header, footer { position: relative; z-index: 1; }
+
+/* ─── Barre de navigation ─── */
+header {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(14px);
+  background: rgb(13 13 13 / .72);
+  border-bottom: 1px solid var(--border);
+}
+.nav { display: flex; align-items: center; gap: 32px; height: 66px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.02em; font-size: 17px; }
+.mark {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: linear-gradient(140deg, var(--s1), var(--s7));
+  display: grid; place-items: center;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .12), 0 6px 18px rgb(57 135 229 / .35);
+}
+.mark svg { width: 15px; height: 15px; }
+.nav-links { display: flex; gap: 26px; margin-left: auto; font-size: 14.5px; color: var(--text-secondary); }
+.nav-links a:hover { color: #fff; }
+.nav .btn { padding: 9px 16px; font-size: 14px; }
+
+/* ─── Boutons ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 14px 24px; border-radius: 11px;
+  font-weight: 600; font-size: 15.5px; letter-spacing: -.01em;
+  border: 1px solid transparent; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  white-space: nowrap;
+}
+.btn svg { width: 17px; height: 17px; flex: none; }
+.btn-primary {
+  background: linear-gradient(180deg, #4a92e8, var(--s1));
+  color: #fff;
+  box-shadow: 0 1px 0 rgb(255 255 255 / .25) inset, 0 10px 26px -8px rgb(57 135 229 / .75);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgb(255 255 255 / .3) inset, 0 16px 34px -10px rgb(57 135 229 / .9); }
+.btn-ghost {
+  background: rgb(255 255 255 / .05);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+.btn-ghost:hover { background: rgb(255 255 255 / .1); transform: translateY(-1px); }
+
+/* ─── Hero ─── */
+.hero { padding: 92px 0 0; text-align: center; }
+.badge {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 7px 15px 7px 9px; border-radius: 999px;
+  background: rgb(255 255 255 / .045); border: 1px solid var(--border);
+  font-size: 13.5px; color: var(--text-secondary); margin-bottom: 26px;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 4px rgb(12 163 12 / .18); }
+h1 {
+  text-wrap: balance;
+  font-size: clamp(38px, 6vw, 66px); line-height: 1.06;
+  letter-spacing: -.035em; font-weight: 800; margin: 0 0 22px;
+}
+h1 .accent {
+  background: linear-gradient(100deg, var(--s1) 10%, var(--s7) 55%, var(--s5) 95%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lede {
+  font-size: clamp(17px, 2.1vw, 20px); color: var(--text-secondary);
+  max-width: 660px; margin: 0 auto 34px; line-height: 1.6;
+}
+.cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.trust {
+  margin-top: 22px; font-size: 13.5px; color: var(--text-muted);
+  display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
+}
+.trust span { display: inline-flex; align-items: center; gap: 7px; }
+.check { width: 14px; height: 14px; color: var(--good); }
+
+/* ─── Capture principale ─── */
+.shot-wrap { margin-top: 62px; perspective: 1600px; }
+.frame {
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-1);
+  box-shadow: 0 60px 120px -40px rgb(0 0 0 / .9), 0 0 0 1px rgb(255 255 255 / .04);
+}
+.frame-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px; background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.tl { display: flex; gap: 6px; }
+.tl i { width: 10px; height: 10px; border-radius: 50%; background: #3a3a37; display: block; }
+.url {
+  flex: 1; text-align: center; font-family: var(--mono); font-size: 12px;
+  color: var(--text-muted); background: rgb(0 0 0 / .28);
+  padding: 4px 10px; border-radius: 6px; max-width: 380px; margin: 0 auto;
+}
+.frame img { width: 100%; }
+.fade-bottom {
+  height: 130px; margin-top: -130px; position: relative; z-index: 2;
+  background: linear-gradient(to bottom, transparent, var(--plane) 88%);
+}
+
+/* ─── Bandeau chiffres ─── */
+.stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  background: var(--border); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin: 34px 0 0;
+}
+.stat { background: var(--surface-1); padding: 26px 22px; }
+.stat b { display: block; font-size: 30px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.stat b.n1 { color: var(--s1); } .stat b.n2 { color: var(--s3); }
+.stat b.n3 { color: var(--s4); } .stat b.n4 { color: var(--s7); }
+.stat span { font-size: 13.5px; color: var(--text-muted); }
+
+/* ─── Sections ─── */
+section { padding: 104px 0; }
+.eyebrow {
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--s1); margin: 0 0 14px;
+}
+h2 {
+  text-wrap: balance;
+  font-size: clamp(28px, 3.8vw, 42px); letter-spacing: -.03em;
+  font-weight: 700; line-height: 1.15; margin: 0 0 16px;
+}
+.sec-lede { color: var(--text-secondary); font-size: 17.5px; max-width: 640px; margin: 0 0 44px; }
+.center { text-align: center; }
+.center .sec-lede { margin-left: auto; margin-right: auto; }
+
+/* ─── Problème / réponse ─── */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.card {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 30px;
+}
+.card h3 { margin: 0 0 12px; font-size: 19px; letter-spacing: -.02em; }
+.card p { margin: 0; color: var(--text-secondary); font-size: 15.5px; }
+.card.problem { border-color: rgb(230 103 103 / .28); background: linear-gradient(180deg, rgb(230 103 103 / .06), transparent 60%), var(--surface-1); }
+.card.answer  { border-color: rgb(25 158 112 / .3);  background: linear-gradient(180deg, rgb(25 158 112 / .07), transparent 60%), var(--surface-1); }
+.tag {
+  display: inline-block; font-family: var(--mono); font-size: 11.5px;
+  letter-spacing: .1em; text-transform: uppercase; padding: 4px 9px;
+  border-radius: 6px; margin-bottom: 14px;
+}
+.tag.red { background: rgb(230 103 103 / .14); color: #e88; }
+.tag.green { background: rgb(25 158 112 / .16); color: #4ecfa0; }
+
+/* ─── Grille de fonctionnalités ─── */
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.feat {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px;
+  transition: border-color .2s ease, transform .2s ease;
+}
+.feat:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+.ico {
+  width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+  margin-bottom: 18px; border: 1px solid var(--border);
+}
+.ico svg { width: 20px; height: 20px; }
+.i1 { background: rgb(57 135 229 / .13); color: var(--s1); }
+.i2 { background: rgb(25 158 112 / .13); color: var(--s3); }
+.i3 { background: rgb(201 133 0 / .13); color: var(--s4); }
+.i4 { background: rgb(144 133 233 / .13); color: var(--s7); }
+.i5 { background: rgb(213 81 129 / .13); color: var(--s5); }
+.i6 { background: rgb(217 89 38 / .13); color: var(--s2); }
+.feat h3 { margin: 0 0 9px; font-size: 17.5px; letter-spacing: -.02em; }
+.feat p { margin: 0; color: var(--text-secondary); font-size: 15px; }
+
+/* ─── Alternance capture / texte ─── */
+.alt { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; margin-bottom: 92px; }
+.alt:last-child { margin-bottom: 0; }
+.alt.rev .txt { order: 2; }
+.alt h3 { font-size: 25px; letter-spacing: -.025em; margin: 0 0 14px; }
+.alt p { color: var(--text-secondary); margin: 0 0 16px; }
+.alt ul { margin: 0; padding: 0; list-style: none; }
+.alt li { display: flex; gap: 10px; font-size: 15px; color: var(--text-secondary); padding: 5px 0; }
+.alt li svg { width: 16px; height: 16px; color: var(--s3); flex: none; margin-top: 4px; }
+
+/* ─── Les 3 vagues ─── */
+.waves { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: w; }
+.wave {
+  position: relative; background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px;
+}
+.wave::before {
+  counter-increment: w; content: counter(w);
+  position: absolute; top: -15px; left: 26px;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--plane); border: 1px solid var(--border-strong);
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--s1);
+}
+.wave h3 { margin: 12px 0 8px; font-size: 17px; }
+.wave p { margin: 0 0 14px; color: var(--text-secondary); font-size: 14.5px; }
+.wave code {
+  display: block; font-family: var(--mono); font-size: 12px;
+  background: rgb(0 0 0 / .4); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 11px; color: var(--text-muted);
+  overflow-x: auto; white-space: nowrap;
+}
+.cost { margin-top: 12px; font-family: var(--mono); font-size: 12.5px; color: var(--s3); }
+
+/* ─── Confidentialité ─── */
+.privacy {
+  background:
+    radial-gradient(700px 260px at 15% 0%, rgb(25 158 112 / .12), transparent 70%),
+    var(--surface-1);
+  border: 1px solid var(--border); border-radius: 22px; padding: 52px;
+}
+.privacy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; }
+.flow { display: flex; flex-direction: column; gap: 10px; font-family: var(--mono); font-size: 13px; }
+.node {
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  padding: 13px 15px; background: rgb(0 0 0 / .32);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.node.you { border-color: rgb(57 135 229 / .5); background: rgb(57 135 229 / .09); }
+.node small { color: var(--text-muted); font-size: 11.5px; }
+.arrow { text-align: center; color: var(--text-muted); font-size: 12px; letter-spacing: .1em; }
+.privacy-list { list-style: none; margin: 0; padding: 0; }
+.privacy-list li { display: flex; gap: 10px; padding: 6px 0; color: var(--text-secondary); font-size: 15px; }
+.privacy-list li svg { flex: none; margin-top: 5px; }
+.privacy-list code, .feat code, .card code, .wave code[style] {
+  font-family: var(--mono); font-size: .88em; background: rgb(255 255 255 / .07);
+  border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; color: var(--text-primary);
+}
+.nope { border-style: dashed; opacity: .45; text-decoration: line-through; }
+
+/* ─── Périmètre honnête ─── */
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.scope .card p { font-size: 15px; }
+.scope li { list-style: none; padding: 6px 0; color: var(--text-secondary); font-size: 15px; display: flex; gap: 10px; }
+.scope ul { margin: 0; padding: 0; }
+.pill { font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 5px; flex: none; margin-top: 3px; height: fit-content; }
+.pill.y { background: rgb(25 158 112 / .16); color: #4ecfa0; }
+.pill.n { background: rgb(255 255 255 / .06); color: var(--text-muted); }
+
+/* ─── CTA final ─── */
+.final {
+  text-align: center; border-radius: 24px; padding: 76px 40px;
+  background:
+    radial-gradient(600px 300px at 50% 0%, rgb(57 135 229 / .22), transparent 70%),
+    linear-gradient(180deg, var(--surface-2), var(--surface-1));
+  border: 1px solid var(--border-strong);
+}
+.final h2 { margin-bottom: 14px; }
+.final .lede { margin-bottom: 32px; }
+
+/* ─── Pied ─── */
+footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 90px; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; color: var(--text-muted); font-size: 14px; }
+.foot a:hover { color: #fff; }
+
+@media (max-width: 900px) {
+  .split, .features, .waves, .privacy-grid, .scope { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .alt { grid-template-columns: 1fr; gap: 28px; }
+  .alt.rev .txt { order: 0; }
+  .nav-links { display: none; }
+  section { padding: 72px 0; }
+  .privacy { padding: 30px; }
+}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="grid-bg"></div>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#">
+      <span class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+      </span>
+      GitStats
+    </a>
+    <nav class="nav-links">
+      <a href="#produit">Produit</a>
+      <a href="#fonctionnement">Fonctionnement</a>
+      <a href="#confidentialite">Confidentialité</a>
+      <a href="#perimetre">Périmètre</a>
+    </nav>
+    <a class="btn btn-primary" href="#analyser">Analyser mes repos</a>
+  </div>
+</header>
+
+<main>
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+    <div class="wrap">
+      <span class="badge"><span class="dot"></span> 100 % navigateur — aucun backend, aucun proxy</span>
+      <h1>Toute l'activité de votre parc GitLab,<br><span class="accent">sans rien déployer.</span></h1>
+      <p class="lede">
+        GitStats est une page statique qui interroge elle-même l'API de vos instances GitLab,
+        agrège 234 dépôts répartis sur plusieurs serveurs, et vous rend commits, lignes de code,
+        contributeurs et rythmes de travail. Votre token ne quitte jamais l'onglet.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#analyser">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></svg>
+          Analyser mes repos
+        </a>
+        <a class="btn btn-ghost" href="#demo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4V8Z"/></svg>
+          Voir la démo
+        </a>
+      </div>
+      <div class="trust">
+        <span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg> Rien à installer côté serveur</span>
+        <span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg> Démo sans token, en 2 minutes</span>
+        <span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg> Licence MIT</span>
+      </div>
+
+      <div class="shot-wrap">
+        <div class="frame">
+          <div class="frame-bar">
+            <span class="tl"><i></i><i></i><i></i></span>
+            <span class="url">votre-machine · aucune donnée en transit</span>
+          </div>
+          <img src="../screenshots/global.png" alt="Vue globale de GitStats : KPI, calendrier d'activité, commits par contributeur et répartition par dépôt">
+        </div>
+      </div>
+      <div class="fade-bottom"></div>
+
+      <div class="stats">
+        <div class="stat"><b class="n1">234</b><span>dépôts agrégés dans une seule vue</span></div>
+        <div class="stat"><b class="n2">&lt; 100</b><span>appels API par sync incrémental</span></div>
+        <div class="stat"><b class="n3">2</b><span>instances GitLab fusionnées</span></div>
+        <div class="stat"><b class="n4">0</b><span>serveur, base ou compte de service</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PROBLÈME / RÉPONSE ═══ -->
+  <section id="produit">
+    <div class="wrap">
+      <p class="eyebrow">Le problème</p>
+      <h2>GitLab sait montrer <em>un</em> dépôt.</h2>
+      <p class="sec-lede">
+        Il ne sait pas répondre à « qu'est-ce qui s'est passé sur nos 234 dépôts cette année ? » —
+        encore moins quand ils vivent sur deux serveurs différents.
+      </p>
+      <div class="split">
+        <div class="card problem">
+          <span class="tag red">La voie habituelle</span>
+          <h3>Un outil de plus à héberger</h3>
+          <p>
+            Un backend, une base, un compte de service. Donc une décision d'hébergement,
+            une revue de sécurité, un budget d'exploitation — et un token qui vit
+            quelque part ailleurs que chez vous.
+          </p>
+        </div>
+        <div class="card answer">
+          <span class="tag green">La voie GitStats</span>
+          <h3>Une page statique, point.</h3>
+          <p>
+            Votre navigateur appelle directement l'API de chaque instance avec votre
+            Personal Access Token, agrège les résultats et les stocke en local.
+            Rien à déployer, rien à administrer, rien à faire valider.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FONCTIONNALITÉS ═══ -->
+  <section>
+    <div class="wrap center">
+      <p class="eyebrow">Ce que vous obtenez</p>
+      <h2>Un tableau de bord qui tient la charge d'un parc entier</h2>
+      <p class="sec-lede">
+        Pensé pour des centaines de dépôts et des dizaines de personnes, pas pour un projet isolé.
+      </p>
+    </div>
+    <div class="wrap">
+      <div class="features">
+        <div class="feat">
+          <div class="ico i1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg></div>
+          <h3>Vue globale instantanée</h3>
+          <p>KPI, calendrier d'activité, commits par contributeur, volume de code ajouté et supprimé, répartition par dépôt — toute l'année sur un écran.</p>
+        </div>
+        <div class="feat">
+          <div class="ico i2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></div>
+          <h3>Multi-instances natif</h3>
+          <p>Plusieurs GitLab dans les mêmes graphiques. Un limiteur de débit par serveur, un token expiré n'arrête que son instance, et sur une seule instance l'interface reste inchangée.</p>
+        </div>
+        <div class="feat">
+          <div class="ico i3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <h3>Sync incrémental</h3>
+          <p>Un dépôt qui n'a pas bougé coûte zéro appel. Le premier passage prend quelques minutes ; les suivants, moins de trente secondes.</p>
+        </div>
+        <div class="feat">
+          <div class="ico i4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.5 3.5 0 0 1 0 5.6M18.4 3a7 7 0 0 1 0 10"/></svg></div>
+          <h3>Identités rapprochées</h3>
+          <p>Adresse pro, adresse perso, <code>noreply</code>, nom mal saisi. Fusion automatique sur e-mail identique, suggestions pour le reste — jamais sans votre validation.</p>
+        </div>
+        <div class="feat">
+          <div class="ico i5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h11M8 12h11M8 18h11"/><circle cx="3.5" cy="6" r="1.5"/><circle cx="3.5" cy="12" r="1.5"/><circle cx="3.5" cy="18" r="1.5"/></svg></div>
+          <h3>Miroirs détectés, chiffres justes</h3>
+          <p>Deux dépôts qui partagent un SHA sont forcément le même code. Le miroir est écarté d'un clic, sans quoi il gonflerait silencieusement tous les classements.</p>
+        </div>
+        <div class="feat">
+          <div class="ico i6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+          <h3>Vos données restent vôtres</h3>
+          <p>IndexedDB pour la vitesse, plus un fichier <code>.json</code> que vous posez où vous voulez. Les tokens n'y sont jamais écrits.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CAPTURES ALTERNÉES ═══ -->
+  <section>
+    <div class="wrap">
+      <div class="alt">
+        <div class="txt">
+          <p class="eyebrow">Dépôts</p>
+          <h3>Le parc entier, triable et filtrable</h3>
+          <p>Commits, lignes ajoutées et supprimées, contributeurs, tendance, fraîcheur de la dernière collecte. Chaque ligne ouvre la fiche du dépôt.</p>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> Pastille d'instance dès qu'il y en a plus d'une</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> Recherche locale par nom ou slug</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> Dépôt de config qui écrase tout ? Ignorez-le sans arrêter sa collecte</li>
+          </ul>
+        </div>
+        <div class="frame"><img src="../screenshots/projets.png" alt="Liste des dépôts triée par commits, avec tendance et état de synchronisation"></div>
+      </div>
+
+      <div class="alt rev">
+        <div class="txt">
+          <p class="eyebrow">Personnes</p>
+          <h3>Les humains, agrégés entre serveurs</h3>
+          <p>Quelqu'un qui commite sur deux GitLab avec la même adresse compte pour une seule personne — l'identifiant d'auteur dérive de l'e-mail, pas de l'instance.</p>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> Rythme de travail par heure et par jour de semaine</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> Répartition par dépôt et jours réellement actifs</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> Tout suit la barre de filtres, en direct</li>
+          </ul>
+        </div>
+        <div class="frame"><img src="../screenshots/personne-detail.png" alt="Fiche d'une personne : KPI, calendrier, répartition par dépôt, rythme horaire et hebdomadaire"></div>
+      </div>
+
+      <div class="alt">
+        <div class="txt">
+          <p class="eyebrow">Comparer</p>
+          <h3>De 2 à 5 personnes côte à côte</h3>
+          <p>Une courbe de commits par personne, un radar normalisé sur le maximum du groupe, et le tableau des valeurs brutes en dessous — parce qu'un radar sert à voir une forme, pas à lire un chiffre.</p>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> Courbes non empilées : comparer, ce n'est pas composer</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg> La couleur suit la personne, jamais son rang</li>
+          </ul>
+        </div>
+        <div class="frame"><img src="../screenshots/comparer.png" alt="Comparaison de trois contributeurs : séries temporelles, radar et tableau détaillé"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FONCTIONNEMENT ═══ -->
+  <section id="fonctionnement">
+    <div class="wrap center">
+      <p class="eyebrow">Comment ça marche</p>
+      <h2>La collecte, en trois vagues</h2>
+      <p class="sec-lede">
+        Un classement utilisable en ~40 secondes, pendant que l'historique daté continue de se remplir en arrière-plan.
+      </p>
+    </div>
+    <div class="wrap">
+      <div class="waves">
+        <div class="wave">
+          <h3>Découverte</h3>
+          <p>La liste des projets, avec leur <code style="display:inline;padding:1px 5px;background:rgb(0 0 0/.4)">last_activity_at</code> — gratuit, et c'est lui qui tient tout le coût.</p>
+          <code>GET /projects?membership=true</code>
+          <p class="cost">~3 appels</p>
+        </div>
+        <div class="wave">
+          <h3>Aperçu contributeurs</h3>
+          <p>Un classement all-time immédiatement lisible, servant d'aperçu pendant que la vague suivante travaille.</p>
+          <code>GET /projects/:id/…/contributors</code>
+          <p class="cost">1 appel / dépôt</p>
+        </div>
+        <div class="wave">
+          <h3>Historique daté</h3>
+          <p>Les commits avec leurs statistiques de lignes, agrégés en seaux (dépôt, auteur, jour) dès l'ingestion.</p>
+          <code>GET /…/commits?since=…&amp;with_stats=true</code>
+          <p class="cost">N appels / dépôt</p>
+        </div>
+      </div>
+      <div class="split" style="margin-top:20px">
+        <div class="card">
+          <h3>Le coût, en vrai</h3>
+          <p>
+            <strong style="color:#fff">1<sup>er</sup> sync</strong> — 234 dépôts, 12 mois : 1 200 à 2 700 appels, soit 3 à 7 minutes.<br>
+            <strong style="color:#fff">Syncs suivants</strong> — ~30 dépôts actifs : 50 à 100 appels, moins de 30 secondes.<br>
+            Élargir la fenêtre de 12 à 24 mois ne re-télécharge que la période manquante.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Un débit qui se règle tout seul</h3>
+          <p>
+            Les en-têtes <code>RateLimit-*</code> ne sont pas exposés en cross-origin : impossible de piloter dessus.
+            Le limiteur se calibre donc sur le seul signal observable, le <strong style="color:#fff">429</strong> —
+            token bucket + AIMD, backoff exponentiel avec <em>full jitter</em>, pause et annulation réelles.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CONFIDENTIALITÉ ═══ -->
+  <section id="confidentialite">
+    <div class="wrap">
+      <div class="privacy">
+        <div class="privacy-grid">
+          <div>
+            <p class="eyebrow">Confidentialité</p>
+            <h2>Le chemin le plus court entre vous et votre GitLab</h2>
+            <p class="sec-lede" style="margin-bottom:24px">
+              Il n'y a pas d'intermédiaire, parce qu'il n'y a rien entre les deux.
+              Héberger l'application ne change rien : le serveur ne livre que des fichiers,
+              il ne voit ni les tokens ni les données.
+            </p>
+            <ul class="privacy-list">
+              <li><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--s3)" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg><span>Les tokens vivent en <code>sessionStorage</code> — ou en <code>localStorage</code> sur choix explicite.</span></li>
+              <li><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--s3)" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg><span>Les commits bruts ne sont jamais archivés : seuls les seaux journaliers restent.</span></li>
+              <li><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--s3)" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg><span>Le fichier <code>.json</code> ne contient aucun secret : il se partage sans risque.</span></li>
+              <li><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--s3)" stroke-width="3" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg><span>Un token <code>read_api</code> suffit. Lecture seule, révocable en un clic.</span></li>
+            </ul>
+          </div>
+          <div class="flow">
+            <div class="node you"><span>Votre navigateur</span><small>token · agrégation · IndexedDB</small></div>
+            <div class="arrow">↓ &nbsp; HTTPS direct &nbsp; ↓</div>
+            <div class="node"><span>gitlab.interne /api/v4</span><small>instance A</small></div>
+            <div class="node"><span>gitlab.autre /api/v4</span><small>instance B</small></div>
+            <div class="arrow" style="padding-top:8px">et surtout, nulle part ailleurs</div>
+            <div class="node nope"><span>Backend GitStats</span><small>n'existe pas</small></div>
+            <div class="node nope"><span>Base de données</span><small>n'existe pas</small></div>
+            <div class="node nope"><span>Télémétrie</span><small>n'existe pas</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PÉRIMÈTRE ═══ -->
+  <section id="perimetre">
+    <div class="wrap center">
+      <p class="eyebrow">Honnêteté</p>
+      <h2>Ce que ça mesure — et ce que ça ne mesure pas</h2>
+      <p class="sec-lede">
+        Ces chiffres décrivent une <strong style="color:#fff">activité</strong>, pas une productivité et
+        encore moins une performance individuelle. Un refactoring qui supprime 3 000 lignes est
+        généralement une bonne journée de travail.
+      </p>
+    </div>
+    <div class="wrap">
+      <div class="scope">
+        <div class="card">
+          <h3>Dans le périmètre</h3>
+          <ul>
+            <li><span class="pill y">oui</span> Commits, sur la branche principale par défaut</li>
+            <li><span class="pill y">oui</span> Lignes ajoutées et supprimées</li>
+            <li><span class="pill y">oui</span> Contributeurs, jours actifs, rythme horaire</li>
+            <li><span class="pill y">oui</span> Plusieurs instances GitLab agrégées</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Volontairement dehors</h3>
+          <ul>
+            <li><span class="pill n">non</span> Merge requests, issues, pipelines CI</li>
+            <li><span class="pill n">non</span> Les lignes des commits de merge — les compter doublerait tout dépôt qui merge</li>
+            <li><span class="pill n">non</span> Toute fusion d'identités automatique au-delà de l'e-mail exact</li>
+            <li><span class="pill n">non</span> Un classement de « performance »</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CTA FINAL ═══ -->
+  <section id="analyser">
+    <div class="wrap">
+      <div class="final">
+        <p class="eyebrow">Deux minutes, zéro installation</p>
+        <h2>Regardez d'abord. Branchez ensuite.</h2>
+        <p class="lede">
+          La démo tourne sur un jeu de données réaliste — 2 instances, 234 dépôts, 12 mois,
+          un dépôt mirroré, des identités en double — sans solliciter le moindre GitLab.
+          Quand vous voulez vos vrais chiffres : un token <code>read_api</code>, une URL, et c'est parti.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></svg>
+            Analyser mes repos
+          </a>
+          <a class="btn btn-ghost" id="demo" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4V8Z"/></svg>
+            Voir la démo
+          </a>
+        </div>
+        <p class="trust" style="margin-top:26px">
+          <span>Aucun compte à créer</span><span>·</span><span>Aucune carte bancaire</span><span>·</span><span>Aucun serveur à demander à l'IT</span>
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span class="brand" style="font-size:15px"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></span> GitStats</span>
+    <span>Licence MIT · React 19 · TypeScript strict · Vite · Aucun backend</span>
+    <span><a href="#">Code source</a></span>
+  </div>
+</footer>
+</body>
+</html>
