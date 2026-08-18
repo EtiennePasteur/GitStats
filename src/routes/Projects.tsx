@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAnalytics } from '../query/useAnalytics';
 import { useAppStore } from '../store/useAppStore';
@@ -44,6 +44,10 @@ export function Projects() {
   const navigate = useNavigate();
   const { projects, projectsById, palette, buckets, isEmpty } = useAnalytics();
   const instances = useAppStore((state) => state.instances);
+  // Recherche locale au tableau : elle n'affiche ou masque que des lignes. Le
+  // champ du bandeau, lui, restreint le périmètre de toute l'application — d'où
+  // les deux libellés distincts, « Rechercher » ici et « Filtrer » là-haut.
+  const [query, setQuery] = useState('');
   /** `null` sur une instance unique : la pastille n'apporterait rien. */
   const instanceLabel = (id: string | undefined): string | null =>
     instances.length > 1 ? (instances.find((entry) => entry.id === id)?.label ?? id ?? null) : null;
@@ -71,6 +75,22 @@ export function Projects() {
     }
     return result;
   }, [buckets]);
+
+  const needle = query.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (needle === '') return projects;
+    return projects.filter((row) => {
+      const project = projectsById.get(row.projectKey);
+      if (project === undefined) return false;
+      // Deux champs, parce que deux écritures cohabitent : le nom lisible affiché
+      // dans la colonne et le slug que l'on tape de mémoire. Chercher l'un ne
+      // trouve pas l'autre.
+      return (
+        project.nameWithNamespace.toLowerCase().includes(needle) ||
+        project.pathWithNamespace.toLowerCase().includes(needle)
+      );
+    });
+  }, [projects, projectsById, needle]);
 
   if (isEmpty) {
     return <EmptyState title="Aucune donnée">Lancez une synchronisation d'abord.</EmptyState>;
@@ -160,18 +180,40 @@ export function Projects() {
 
   return (
     <Card
+      // Le titre garde le total du périmètre : un chiffre de référence qui
+      // changerait à chaque frappe ne serait plus une référence.
       title={`${formatNumber(projects.length)} dépôts actifs`}
-      subtitle="Cliquez sur une ligne pour le détail."
+      subtitle={
+        needle === ''
+          ? 'Cliquez sur une ligne pour le détail.'
+          : `${formatNumber(filtered.length)} sur ${formatNumber(projects.length)} · Cliquez sur une ligne pour le détail.`
+      }
+      actions={
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Rechercher un dépôt…"
+          // Isolé dans l'en-tête, le champ n'a aucun texte voisin qui le décrive.
+          aria-label="Rechercher un dépôt"
+          className="h-8 w-56 rounded-lg border border-[var(--border)] bg-transparent px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--series-1)]"
+        />
+      }
       bodyClassName="px-0 pb-0"
     >
       <DataTable
-        rows={projects}
+        rows={filtered}
         columns={columns}
         rowKey={(row) => row.projectKey}
         defaultSort={{ key: 'commits', direction: 'desc' }}
         onRowClick={(row) => navigate(`/projets/${row.projectKey}`)}
         maxHeight={640}
         caption="Statistiques par dépôt"
+        emptyLabel={
+          needle === ''
+            ? 'Aucune donnée sur ce périmètre.'
+            : `Aucun dépôt ne correspond à « ${needle} ».`
+        }
       />
     </Card>
   );
