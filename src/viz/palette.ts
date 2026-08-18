@@ -112,6 +112,12 @@ export function assignColors(rankedIds: string[], palette: Palette): ColorAssign
   };
 }
 
+/** Nombre de paliers colorés du calendrier d'activité. */
+const SEQUENTIAL_TIERS = 5;
+
+/** Index de `--seq-300` dans la rampe : voir `sequentialRamp`. */
+const CALENDAR_FIRST_STEP = 2;
+
 /** Rampe séquentielle : magnitude continue, une seule teinte clair → foncé. */
 export function sequentialColor(value: number, max: number, palette: Palette): string {
   if (max <= 0 || value <= 0) return palette.grid;
@@ -122,4 +128,56 @@ export function sequentialColor(value: number, max: number, palette: Palette): s
   const ratio = Math.sqrt(Math.min(1, value / max));
   const index = Math.min(steps.length - 1, Math.max(0, Math.round(ratio * (steps.length - 1))));
   return steps[index] ?? palette.grid;
+}
+
+/**
+ * Bornes basses des paliers d'une rampe séquentielle discrète, en racine.
+ *
+ * Les distributions Git sont très asymétriques : un jour à 40 commits, cent
+ * jours à 1. Découpé linéairement sur [0, max], le premier palier avale tous
+ * les jours à 1-4 commits, qui se confondent alors avec les jours vides — la
+ * personne semble n'avoir rien fait. En racine, le bas de la distribution
+ * récupère la moitié des paliers.
+ *
+ * La première borne vaut TOUJOURS 1 : un commit doit sortir du gris, quelle
+ * que soit la période regardée.
+ */
+export function sequentialBreaks(max: number, tiers = SEQUENTIAL_TIERS): number[] {
+  const top = Math.max(1, Math.floor(max));
+  const breaks = [1];
+
+  for (let index = 1; index < tiers; index += 1) {
+    // Numérateur entier : `top * (index / tiers) ** 2` donne 16.000000000000004
+    // pour (400, 1, 5), et l'arrondi supérieur remonterait la borne à 17.
+    const bound = Math.ceil((top * index * index) / (tiers * tiers));
+    // Sur une période calme (max = 2, 3, 4), deux bornes en racine tombent sur
+    // le même entier. Les garder afficherait des pastilles de légende qui ne
+    // coloreraient jamais rien, et ECharts supprime silencieusement les
+    // intervalles dégénérés : on déduplique.
+    if (bound > breaks[breaks.length - 1]! && bound <= top) breaks.push(bound);
+  }
+
+  // Il reste des paliers libres après déduplication : le jour record mérite la
+  // teinte la plus foncée plutôt que de partager celle de son voisin.
+  if (breaks.length < tiers && top > breaks[breaks.length - 1]!) breaks.push(top);
+
+  return breaks;
+}
+
+/**
+ * Teintes du calendrier d'activité, de la plus pâle à la plus foncée.
+ *
+ * La rampe démarre au pas 300, pas au 100 : sur le gris des cases vides — le
+ * fond réel des cellules — les pas 100 et 200 tiennent 1,00:1 et 1,35:1 en
+ * thème clair. Une journée à un commit y serait aussi invisible que le vide
+ * qu'on cherche justement à en distinguer. Le pas 300 est le premier lisible
+ * sur les deux surfaces, ce qui évite d'avoir à connaître le thème ici.
+ */
+export function sequentialRamp(count: number, palette: Palette): string[] {
+  const steps = palette.sequential.slice(CALENDAR_FIRST_STEP);
+  const last = steps.length - 1;
+  return Array.from(
+    { length: count },
+    (_, index) => steps[count <= 1 ? 0 : Math.round((index * last) / (count - 1))] ?? palette.grid,
+  );
 }

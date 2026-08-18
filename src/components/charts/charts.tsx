@@ -16,7 +16,7 @@ import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import { EChart, axisStyle, tooltipStyle } from './EChart';
 import type { Palette, ColorAssignment } from '../../viz/palette';
-import { sequentialColor, OTHER_LABEL } from '../../viz/palette';
+import { sequentialColor, sequentialBreaks, sequentialRamp, OTHER_LABEL } from '../../viz/palette';
 import { OTHER_SERIES_ID, type DayPoint, type Granularity } from '../../query/selectors';
 import { formatNumber, formatCompact, formatDay } from '../ui/primitives';
 
@@ -160,14 +160,35 @@ export function CommitTimeline({
 }
 
 /**
+ * Le calendrier s'ancre en haut et sa hauteur de grille est fixe : la hauteur
+ * du composant est donc une somme, pas une valeur devinée. La légende passe
+ * SOUS la grille — au-dessus, elle recouvre les libellés de mois qu'ECharts
+ * dessine 10 px hors du rectangle du calendrier.
+ */
+const CELL_HEIGHT = 14;
+const WEEK_ROWS = 7;
+const MONTH_BAND = 28; // marge d'ECharts (10 px) + une ligne de texte de 11 px
+const LEGEND_GAP = 14;
+const LEGEND_ITEM = 12;
+const LEGEND_TOP = MONTH_BAND + WEEK_ROWS * CELL_HEIGHT + LEGEND_GAP;
+const CALENDAR_HEIGHT = LEGEND_TOP + LEGEND_ITEM + 8;
+
+/** Libellé d'un palier de la légende : « 1 », « 4 à 6 », « 7 et + ». */
+function pieceLabel(from: number, next: number | undefined): string {
+  if (next === undefined) return `${formatNumber(from)} et +`;
+  if (next - from === 1) return formatNumber(from);
+  return `${formatNumber(from)} à ${formatNumber(next - 1)}`;
+}
+
+/**
  * Calendrier d'activité type GitHub.
- * Encodage séquentiel : une seule teinte, clair → foncé. Une légende d'échelle
- * accompagne obligatoirement le dégradé.
+ * Encodage séquentiel : une seule teinte, clair → foncé, accompagnée d'une
+ * légende d'échelle placée sous la grille.
  */
 export function ActivityCalendar({
   points,
   palette,
-  height = 200,
+  height = CALENDAR_HEIGHT,
   stale,
 }: {
   points: DayPoint[];
@@ -180,6 +201,24 @@ export function ActivityCalendar({
     const max = points.reduce((best, point) => Math.max(best, point.commits), 0);
     const first = points[0]!.day;
     const last = points[points.length - 1]!.day;
+
+    // Paliers explicites plutôt que le découpage automatique d'ECharts, qui est
+    // linéaire : sur une période large, il rangeait les journées à 1-4 commits
+    // dans le même seau que les journées vides, et les peignait du même gris.
+    const breaks = sequentialBreaks(max);
+    const ramp = sequentialRamp(breaks.length, palette);
+    const pieces = [
+      // Le zéro porte le gris, et c'est le seul à le porter. Borner par `lt: 1`
+      // plutôt que par la valeur exacte rend la couverture totale : aucune
+      // valeur ne peut retomber sur l'interpolation de secours d'ECharts.
+      { lt: 1, label: '0', color: palette.grid },
+      ...breaks.map((from, index) => ({
+        gte: from,
+        ...(breaks[index + 1] === undefined ? {} : { lt: breaks[index + 1] }),
+        label: pieceLabel(from, breaks[index + 1]),
+        color: ramp[index]!,
+      })),
+    ];
 
     return {
       animation: false,
@@ -194,28 +233,40 @@ export function ActivityCalendar({
         },
       },
       visualMap: {
-        min: 0,
-        max: Math.max(1, max),
         type: 'piecewise',
         orient: 'horizontal',
-        right: 8,
-        top: 0,
-        itemWidth: 12,
-        itemHeight: 12,
+        top: LEGEND_TOP,
+        right: 12,
+        // Le défaut d'ECharts est 15 px, appliqués AVANT le positionnement :
+        // c'est lui qui faisait retomber les pastilles sur les libellés de mois.
+        padding: 0,
+        itemWidth: LEGEND_ITEM,
+        itemHeight: LEGEND_ITEM,
         itemGap: 3,
+        pieces,
+        // Les libellés chiffrés des paliers tripleraient la largeur de la
+        // bande ; ils restent renseignés, les afficher tient en une ligne.
         showLabel: false,
-        text: ['+', '0'],
+        // L'échelle s'adapte à la période : annoncer le maximum réel vaut mieux
+        // qu'un « + » muet. Période vide : rien à annoncer.
+        text: [max > 0 ? formatNumber(max) : '', '0'],
         textStyle: { color: palette.textMuted, fontSize: 11 },
+        // Les pastilles sont cliquables par défaut et masquent leur palier,
+        // mais la sélection est effacée au changement de filtre suivant : une
+        // interaction invisible qui disparaît toute seule ne vaut rien.
+        selectedMode: false,
         // Rampe à une seule teinte : jamais d'arc-en-ciel pour une magnitude.
-        inRange: {
-          color: [palette.grid, ...palette.sequential.slice(1)],
-        },
+        // Sans ce repli, ECharts en fabrique un.
+        inRange: { color: ramp },
       },
       calendar: {
-        top: 40,
+        top: MONTH_BAND,
         left: 40,
         right: 12,
-        cellSize: ['auto', 14],
+        // Ne jamais ajouter `bottom` ici : renseigner les deux bornes ferait
+        // basculer la hauteur de cellule en « auto » et étirerait les 7 lignes
+        // sur toute la carte.
+        cellSize: ['auto', CELL_HEIGHT],
         range: [first, last],
         splitLine: { show: false },
         itemStyle: {
