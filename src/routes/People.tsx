@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAnalytics, authorName } from '../query/useAnalytics';
 import { useAppStore } from '../store/useAppStore';
@@ -26,7 +26,8 @@ import {
 
 export function People() {
   const navigate = useNavigate();
-  const { authors, authorsById, authorColors, palette, buckets, isEmpty } = useAnalytics();
+  const { authors, authorsById, authorColors, palette, buckets, labelOf, isEmpty } = useAnalytics();
+  const [query, setQuery] = useState('');
 
   const sparklines = useMemo(() => {
     const byAuthorWeek = new Map<string, Map<string, number>>();
@@ -48,6 +49,20 @@ export function People() {
     }
     return result;
   }, [buckets]);
+
+  const needle = query.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (needle === '') return authors;
+    return authors.filter((row) => {
+      if (labelOf(row.authorId).toLowerCase().includes(needle)) return true;
+      // Le tableau affiche l'adresse sous le nom : la chercher doit fonctionner.
+      // Toutes les adresses, pas seulement la principale — une identité fusionnée
+      // en porte plusieurs, et c'est souvent la secondaire qu'on a sous les yeux.
+      const author = authorsById.get(row.authorId);
+      if (author === undefined) return false;
+      return author.knownEmails.some((mail) => mail.toLowerCase().includes(needle));
+    });
+  }, [authors, authorsById, labelOf, needle]);
 
   if (isEmpty) {
     return <EmptyState title="Aucune donnée">Lancez une synchronisation d'abord.</EmptyState>;
@@ -139,18 +154,40 @@ export function People() {
 
   return (
     <Card
+      // Le titre garde le total : un chiffre de référence qui changerait à chaque
+      // frappe ne serait plus une référence. Le décompte filtré va en sous-titre.
       title={`${formatNumber(authors.length)} contributeurs`}
-      subtitle="Cliquez sur une ligne pour la fiche détaillée."
+      subtitle={
+        needle === ''
+          ? 'Cliquez sur une ligne pour la fiche détaillée.'
+          : `${formatNumber(filtered.length)} sur ${formatNumber(authors.length)} · Cliquez sur une ligne pour la fiche détaillée.`
+      }
+      actions={
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Rechercher une personne…"
+          // Isolé dans l'en-tête, le champ n'a aucun texte voisin qui le décrive.
+          aria-label="Rechercher une personne"
+          className="h-8 w-56 rounded-lg border border-[var(--border)] bg-transparent px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--series-1)]"
+        />
+      }
       bodyClassName="px-0 pb-0"
     >
       <DataTable
-        rows={authors}
+        rows={filtered}
         columns={columns}
         rowKey={(row) => row.authorId}
         defaultSort={{ key: 'commits', direction: 'desc' }}
         onRowClick={(row) => navigate(`/personnes/${encodeURIComponent(row.authorId)}`)}
         maxHeight={640}
         caption="Statistiques par contributeur"
+        emptyLabel={
+          needle === ''
+            ? 'Aucune donnée sur ce périmètre.'
+            : `Aucun contributeur ne correspond à « ${needle} ».`
+        }
       />
     </Card>
   );
