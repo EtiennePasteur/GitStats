@@ -108,6 +108,10 @@ qui commite sur deux serveurs avec la même adresse compte pour une seule person
 
 La fiche individuelle ajoute la répartition par dépôt et le rythme de travail
 (par heure et par jour de semaine), calculé dans le fuseau de l'auteur du commit.
+Comme tout le reste, il suit la barre de filtres : changer la période le repeint.
+Les commits collectés avant la version qui archive l'heure n'en portent pas — la
+carte le dit alors plutôt que de les compter, et un « Tout resynchroniser » les
+récupère.
 
 ![Fiche d'une personne : KPI, calendrier, répartition par dépôt, rythme horaire et hebdomadaire](docs/screenshots/personne-detail.png)
 

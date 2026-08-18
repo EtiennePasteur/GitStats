@@ -32,7 +32,7 @@ import { IdentityResolver, identityKey } from './identity';
 import { ingestCommits, trimRecentShas } from './aggregate';
 import { planSync, windowStart, type ProjectPlan } from './planner';
 import type { Dataset } from '../store/dataset';
-import { mergeBucketsInMemory, mergeRhythmsInMemory, resetProjectInMemory } from '../store/dataset';
+import { mergeBucketsInMemory, resetProjectInMemory } from '../store/dataset';
 import * as db from '../store/db';
 
 export type SyncPhase =
@@ -434,14 +434,12 @@ export class SyncEngine {
           for (const sha of result.ingestedShas) knownShas.add(sha);
 
           mergeBucketsInMemory(dataset, result.buckets);
-          mergeRhythmsInMemory(dataset, result.rhythms);
           for (const commit of result.recentCommits) {
             dataset.recentCommits.set(commit.key, commit);
             allRecent.push({ sha: commit.sha, date: commit.date });
           }
 
           await db.mergeDaily(result.buckets);
-          await db.mergeRhythms(result.rhythms);
           if (result.recentCommits.length > 0) {
             await db.writeRecentCommits(project.key, result.recentCommits);
           }

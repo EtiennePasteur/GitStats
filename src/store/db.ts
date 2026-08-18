@@ -19,6 +19,7 @@ import type {
   AuthorRhythm,
   StoredMeta,
 } from '../model/types';
+import { mergeHours } from '../model/hours';
 import {
   migrateV1ToV2,
   type V1Snapshot,
@@ -108,6 +109,12 @@ export function getDb(): Promise<IDBPDatabase<GitStatsSchema>> {
         const store = db.createObjectStore('recentCommits', { keyPath: 'key' });
         store.createIndex('by-project', 'projectKey');
       }
+      // Magasin vestigial : plus rien ne l'écrit ni ne le lit depuis que la
+      // répartition horaire vit dans les seaux journaliers. On le déclare
+      // toujours plutôt que de monter `SCHEMA_VERSION` — le bloc de migration
+      // ci-dessus est gardé par `oldVersion >= 1` SANS borne haute, donc une
+      // version 3 rejouerait la conversion v1→v2 sur une base v2 et détruirait
+      // des heures de collecte. À supprimer quand ce garde-fou sera resserré.
       if (!db.objectStoreNames.contains('rhythms')) {
         db.createObjectStore('rhythms', { keyPath: 'authorId' });
       }
@@ -238,6 +245,10 @@ export async function mergeDaily(buckets: DailyBucket[]): Promise<void> {
         additions: existing.additions + bucket.additions,
         deletions: existing.deletions + bucket.deletions,
         merges: existing.merges + bucket.merges,
+        // Même fusion que `mergeBucketsInMemory` : les deux chemins doivent
+        // donner le même seau, sinon recharger l'onglet change les chiffres.
+        hourly: mergeHours(existing.hourly, bucket.hourly),
+        hourlyMerges: mergeHours(existing.hourlyMerges, bucket.hourlyMerges),
       });
     }),
   );
@@ -327,40 +338,6 @@ export async function replaceRecentCommits(commits: RecentCommit[]): Promise<voi
   const db = await getDb();
   await db.clear('recentCommits');
   await writeInBatches(db, 'recentCommits', commits);
-}
-
-// --- rythmes ----------------------------------------------------------
-
-export async function readRhythms(): Promise<AuthorRhythm[]> {
-  return (await getDb()).getAll('rhythms');
-}
-
-export async function mergeRhythms(rhythms: AuthorRhythm[]): Promise<void> {
-  if (rhythms.length === 0) return;
-  const db = await getDb();
-  const tx = db.transaction('rhythms', 'readwrite');
-  await Promise.all(
-    rhythms.map(async (rhythm) => {
-      const existing = await tx.store.get(rhythm.authorId);
-      if (existing === undefined) {
-        await tx.store.put(rhythm);
-        return;
-      }
-      await tx.store.put({
-        authorId: rhythm.authorId,
-        hours: existing.hours.map((value, i) => value + (rhythm.hours[i] ?? 0)),
-        weekdays: existing.weekdays.map((value, i) => value + (rhythm.weekdays[i] ?? 0)),
-      });
-    }),
-  );
-  await tx.done;
-}
-
-export async function replaceRhythms(rhythms: AuthorRhythm[]): Promise<void> {
-  const db = await getDb();
-  const tx = db.transaction('rhythms', 'readwrite');
-  await tx.store.clear();
-  await Promise.all([...rhythms.map((rhythm) => tx.store.put(rhythm)), tx.done]);
 }
 
 // --- handle de fichier ------------------------------------------------

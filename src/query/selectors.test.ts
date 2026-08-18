@@ -13,6 +13,7 @@ import {
   type Filters,
 } from './selectors';
 import type { DailyBucket, StoredAuthor, StoredProject } from '../model/types';
+import { sumHours } from '../model/hours';
 
 const P = (n: number): string => `inst-a~${n}`;
 
@@ -150,10 +151,46 @@ describe('filterBuckets', () => {
   });
 
   it('ne mute jamais les seaux d\'origine', () => {
-    const source = [bucket({ commits: 10, merges: 4 })];
+    const source = [bucket({ commits: 10, merges: 4, hourly: [9, 6, 14, 4], hourlyMerges: [14, 4] })];
     filterBuckets(source, f({ excludeMerges: true }), AUTHORS, PROJECTS);
     expect(source[0]!.commits).toBe(10);
     expect(source[0]!.merges).toBe(4);
+    expect(source[0]!.hourly).toEqual([9, 6, 14, 4]);
+  });
+
+  it('excludeMerges retire aussi les heures des merges', () => {
+    const withMerges = [bucket({ commits: 3, merges: 1, hourly: [9, 2, 14, 1], hourlyMerges: [14, 1] })];
+    const kept = filterBuckets(withMerges, f({ excludeMerges: true }), AUTHORS, PROJECTS);
+    expect(kept[0]!.hourly).toEqual([9, 2]);
+    expect(kept[0]!.hourlyMerges).toBeUndefined();
+  });
+
+  it('conserve après filtrage l\'égalité entre heures connues et commits', () => {
+    // C'est cet invariant qui garantit que le total du rythme de travail ne
+    // divergera jamais du KPI « Commits » affiché sur la même page.
+    const source = [
+      bucket({ commits: 10, merges: 4, hourly: [9, 6, 14, 4], hourlyMerges: [14, 4] }),
+      bucket({ projectKey: P(3), commits: 2, hourly: [22, 2] }),
+    ];
+    for (const excludeMerges of [true, false]) {
+      const kept = filterBuckets(source, f({ excludeMerges }), AUTHORS, PROJECTS);
+      const commits = kept.reduce((total, b) => total + b.commits, 0);
+      const known = kept.reduce((total, b) => total + sumHours(b.hourly), 0);
+      expect(known).toBe(commits);
+    }
+  });
+
+  it('emporte les heures quand un seau entièrement composé de merges disparaît', () => {
+    const onlyMerges = [bucket({ commits: 3, merges: 3, hourly: [9, 3], hourlyMerges: [9, 3] })];
+    expect(filterBuckets(onlyMerges, f({ excludeMerges: true }), AUTHORS, PROJECTS)).toHaveLength(0);
+  });
+
+  it('conserve les heures quand une identité fusionnée est renommée', () => {
+    const source = [bucket({ authorId: 'ariviere@example.org', commits: 2, hourly: [9, 2] })];
+    const aliases = new Map([['ariviere@example.org', 'a.riviere@example.com']]);
+    const kept = filterBuckets(source, f({ excludeMerges: false }), AUTHORS, PROJECTS, aliases);
+    expect(kept[0]!.authorId).toBe('a.riviere@example.com');
+    expect(kept[0]!.hourly).toEqual([9, 2]);
   });
 
   /** Même carte de projets, avec un drapeau posé sur le projet 2. */
@@ -191,6 +228,18 @@ describe('filterBuckets', () => {
       flagged('excluded'),
     );
     expect(kept.every((b) => b.projectKey !== P(2))).toBe(true);
+  });
+
+  it('un doublon de miroir n\'apporte aucune heure', () => {
+    // Le rythme de travail se lit sur les seaux filtrés : sans cette garantie,
+    // les heures du dépôt mirroré seraient comptées une fois par instance.
+    const source = [
+      bucket({ projectKey: P(1), commits: 2, hourly: [9, 2] }),
+      bucket({ projectKey: P(2), commits: 2, hourly: [9, 2] }),
+    ];
+    const kept = filterBuckets(source, f({ excludeBots: false }), AUTHORS, flagged('excluded'));
+    const known = kept.reduce((total, b) => total + sumHours(b.hourly), 0);
+    expect(known).toBe(2);
   });
 });
 

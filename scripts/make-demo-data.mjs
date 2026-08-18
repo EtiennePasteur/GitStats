@@ -116,7 +116,31 @@ const indexOf = new Map(authorIndex.map((id, i) => [id, i]));
 const projects = [];
 const daily = [];
 const recentCommits = [];
-const rhythmAcc = new Map();
+
+/**
+ * Loi horaire propre à chaque personne : sans cela, toutes les fiches montrent
+ * le même graphe de rythme et la capture publiée illustre mal la carte.
+ * `[début, fin, part]` — le reste des commits tombe dans la queue de soirée.
+ */
+const HOUR_PROFILES = [
+  [9, 18, 0.85], // journée classique
+  [7, 15, 0.9], // lève-tôt
+  [13, 22, 0.8], // tardif
+];
+const profileOf = new Map(authorIndex.map((id, i) => [id, HOUR_PROFILES[i % HOUR_PROFILES.length]]));
+
+/** Tire `count` heures selon la loi de l'auteur, agrégées en paires triées. */
+function drawHours(authorId, count) {
+  const [start, end, share] = profileOf.get(authorId) ?? HOUR_PROFILES[0];
+  const byHour = new Map();
+  for (let i = 0; i < count; i++) {
+    const hour = random() < share ? between(start, end) : between(19, 23);
+    byHour.set(hour, (byHour.get(hour) ?? 0) + 1);
+  }
+  const packed = [];
+  for (const hour of [...byHour.keys()].sort((a, b) => a - b)) packed.push(hour, byHour.get(hour));
+  return packed;
+}
 
 for (let id = 1; id <= PROJECT_COUNT; id++) {
   // Les identifiants numériques repartent de 1 sur chaque instance : c'est
@@ -149,19 +173,24 @@ for (let id = 1; id <= PROJECT_COUNT; id++) {
       const deletions = Math.round(additions * (0.2 + random() * 0.6));
       const merges = random() < 0.15 ? 1 : 0;
 
-      daily.push([key, indexOf.get(authorId), day, commits, additions, deletions, merges]);
+      // La répartition horaire vit dans le seau. Invariants attendus par le
+      // lecteur : somme(hourly) === commits, et hourlyMerges ⊆ hourly.
+      const hourly = drawHours(authorId, commits);
+      const hourlyMerges = merges > 0 ? [hourly[0], merges] : undefined;
+
+      daily.push([
+        key,
+        indexOf.get(authorId),
+        day,
+        commits,
+        additions,
+        deletions,
+        merges,
+        hourly,
+        hourlyMerges,
+      ]);
       commitCount += commits;
       lastDay = day;
-
-      let rhythm = rhythmAcc.get(authorId);
-      if (!rhythm) {
-        rhythm = { hours: new Array(24).fill(0), weekdays: new Array(7).fill(0) };
-        rhythmAcc.set(authorId, rhythm);
-      }
-      // Journée de travail centrée sur 9h-18h, avec une queue en soirée.
-      const hour = random() < 0.85 ? between(9, 18) : between(19, 23);
-      rhythm.hours[hour] += commits;
-      rhythm.weekdays[weekday] += commits;
     }
   }
 
@@ -283,14 +312,20 @@ const file = {
   authorIndex,
   projectIndex: [...new Set(daily.map((row) => row[0]))],
   daily: [],
-  rhythms: [...rhythmAcc.entries()].map(([id, r]) => [indexOf.get(id), r.hours, r.weekdays]),
+  // Vestige du format : plus rien ne le lit, mais un fichier neuf doit rester
+  // ouvrable par une version antérieure de l'application.
+  rhythms: [],
   overviews: [],
   recentCommits,
 };
 
 // Packing final : les clés de projet sont indexées comme les auteurs.
 const projectIndexOf = new Map(file.projectIndex.map((key, i) => [key, i]));
-file.daily = daily.map((row) => [projectIndexOf.get(row[0]), row[1], row[2], row[3], row[4], row[5], row[6]]);
+file.daily = daily.map((row) => {
+  const packed = [projectIndexOf.get(row[0]), row[1], row[2], row[3], row[4], row[5], row[6], row[7]];
+  if (row[8] !== undefined) packed.push(row[8]);
+  return packed;
+});
 
 const json = JSON.stringify(file);
 writeFileSync(OUT, json);

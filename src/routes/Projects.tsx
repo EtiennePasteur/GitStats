@@ -303,7 +303,12 @@ export function ProjectDetail() {
   // `includeMuted` : cette vue ne parle que d'UN dépôt. Aucun total agrégé ne peut
   // être gonflé, alors qu'une fiche vide serait incompréhensible.
   const analytics = useAnalytics({ includeMuted: true });
-  const { projectsById, authorColors, palette, buckets, labelOf } = analytics;
+  const { projectsById, authorsById, authorColors, palette, buckets, labelOf, range, resolveAuthorId } =
+    analytics;
+  // Sélecteurs unitaires : s'abonner au store entier re-rendrait la fiche à
+  // chaque frappe dans la recherche de la barre de filtres.
+  const excludeBots = useFilterStore((state) => state.excludeBots);
+  const excludeMerges = useFilterStore((state) => state.excludeMerges);
   const dataset = useAnalyticsDataset();
   const instances = useAppStore((state) => state.instances);
   const setProjectMuted = useAppStore((state) => state.setProjectMuted);
@@ -314,7 +319,12 @@ export function ProjectDetail() {
     [buckets, projectKeyParam],
   );
 
-  const dayPoints = useMemo(() => byDay(projectBuckets), [projectBuckets]);
+  // Bornes explicites : sans elles, le calendrier se recadre sur le premier et le
+  // dernier commit du dépôt au lieu de couvrir la période sélectionnée.
+  const dayPoints = useMemo(
+    () => byDay(projectBuckets, range.from ?? undefined, range.to ?? undefined),
+    [projectBuckets, range],
+  );
   const stats = useMemo(() => {
     let commits = 0;
     let additions = 0;
@@ -335,20 +345,40 @@ export function ProjectDetail() {
   );
 
   const timeline = useMemo(
-    () => byDayAndAuthor(projectBuckets, rankedAuthorIds.slice(0, 8), {
-      granularity: pickGranularity(dayPoints.length),
-    }),
-    [projectBuckets, rankedAuthorIds, dayPoints.length],
+    () =>
+      byDayAndAuthor(projectBuckets, rankedAuthorIds.slice(0, 8), {
+        from: range.from ?? undefined,
+        to: range.to ?? undefined,
+        granularity: pickGranularity(dayPoints.length),
+      }),
+    [projectBuckets, rankedAuthorIds, range, dayPoints.length],
   );
 
-  const recent = useMemo(
-    () =>
-      [...dataset.recentCommits.values()]
-        .filter((commit) => commit.projectKey === projectKeyParam)
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 50),
-    [dataset, projectKeyParam],
-  );
+  /**
+   * Mêmes filtres que le reste de la page — période, bots, merges — et identités
+   * résolues, sinon la liste affiche la couleur et le nom d'une identité absorbée.
+   *
+   * Le tri et le filtre de date portent sur `committed_date`, seule date que
+   * porte l'enregistrement, là où les seaux découpent sur `authored_date` : un
+   * commit rebasé peut donc entrer ou sortir de la liste au bord de la période
+   * sans que le calendrier bouge. Écart assumé sur une liste indicative.
+   */
+  const recent = useMemo(() => {
+    const from = range.from;
+    const to = range.to;
+    return [...dataset.recentCommits.values()]
+      .filter((commit) => {
+        if (commit.projectKey !== projectKeyParam) return false;
+        const day = commit.date.slice(0, 10);
+        if (from !== null && day < from) return false;
+        if (to !== null && day > to) return false;
+        if (excludeMerges && commit.isMerge) return false;
+        if (excludeBots && authorsById.get(resolveAuthorId(commit.authorId))?.isBot === true) return false;
+        return true;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 50);
+  }, [dataset, projectKeyParam, range, excludeBots, excludeMerges, authorsById, resolveAuthorId]);
 
   if (project === undefined) {
     return <EmptyState title="Dépôt introuvable">Ce dépôt n'existe pas dans les données locales.</EmptyState>;
@@ -443,18 +473,19 @@ export function ProjectDetail() {
 
       <Card
         title="Commits récents"
-        subtitle={`${formatNumber(recent.length)} derniers commits conservés localement`}
+        subtitle={`${formatNumber(recent.length)} commits sur la période — seuls les derniers commits de chaque dépôt sont conservés localement`}
         bodyClassName="px-0 pb-0"
       >
         {recent.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
-            Aucun commit récent mémorisé pour ce dépôt.
+            Aucun commit mémorisé pour ce dépôt sur cette période : seuls les derniers commits de
+            chaque dépôt sont conservés localement.
           </p>
         ) : (
           <ul className="max-h-[420px] divide-y divide-[var(--border)] overflow-y-auto">
             {recent.map((commit) => (
               <li key={commit.key} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <SeriesDot color={authorColors.colorOf(commit.authorId)} />
+                <SeriesDot color={authorColors.colorOf(resolveAuthorId(commit.authorId))} />
                 <a
                   href={commit.webUrl}
                   target="_blank"
@@ -466,9 +497,9 @@ export function ProjectDetail() {
                 <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{commit.title}</span>
                 <span
                   className="shrink-0 truncate text-xs text-[var(--text-muted)]"
-                  title={labelOf(commit.authorId)}
+                  title={labelOf(resolveAuthorId(commit.authorId))}
                 >
-                  {labelOf(commit.authorId)}
+                  {labelOf(resolveAuthorId(commit.authorId))}
                 </span>
                 {!commit.isMerge && (
                   <span className="tnum shrink-0 text-xs">

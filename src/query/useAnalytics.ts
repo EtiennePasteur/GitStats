@@ -46,6 +46,14 @@ export interface Analytics {
   authorColors: ColorAssignment;
   /** Nom d'une personne, complété de son e-mail si un homonyme existe. */
   labelOf: (id: string) => string;
+  /**
+   * Identifiant d'ingestion → identifiant canonique après fusion manuelle.
+   *
+   * `filterBuckets` le fait déjà pour les seaux ; c'est pour les enregistrements
+   * qui ne passent pas par lui, comme les commits récents, dont la couleur et le
+   * libellé seraient sinon ceux d'une identité absorbée.
+   */
+  resolveAuthorId: (id: string) => string;
   isEmpty: boolean;
 }
 
@@ -142,6 +150,7 @@ export function useAnalytics(options?: { includeMuted?: boolean }): Analytics {
     (id: string) => authorLabels.get(id) ?? authorName(mergedAuthors, id),
     [authorLabels, mergedAuthors],
   );
+  const resolveAuthorId = useCallback((id: string) => aliases.get(id) ?? id, [aliases]);
 
   const buckets = useMemo(
     () => filterBuckets(dataset.daily.values(), filters, mergedAuthors, dataset.projects, aliases),
@@ -181,6 +190,7 @@ export function useAnalytics(options?: { includeMuted?: boolean }): Analytics {
     palette,
     authorColors,
     labelOf,
+    resolveAuthorId,
     isEmpty: dataset.daily.size === 0,
   };
 }

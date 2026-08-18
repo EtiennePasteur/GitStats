@@ -16,8 +16,9 @@
  *    jour tous les commits de soirée. On découpe donc la chaîne directement.
  */
 
-import type { DailyBucket, AuthorRhythm, RecentCommit, ProjectKey } from '../model/types';
+import type { DailyBucket, RecentCommit, ProjectKey } from '../model/types';
 import { OVERLAP_DAYS } from '../model/types';
+import { addHour } from '../model/hours';
 import type { GitLabCommit } from '../gitlab/types';
 import type { IdentityResolver } from './identity';
 
@@ -44,7 +45,6 @@ export function bucketKey(projectKey: ProjectKey, authorId: string, day: string)
 
 export interface IngestResult {
   buckets: DailyBucket[];
-  rhythms: AuthorRhythm[];
   recentCommits: RecentCommit[];
   /** SHA effectivement ingérés (les doublons en sont exclus). */
   ingestedShas: string[];
@@ -70,7 +70,6 @@ export function ingestCommits(
   knownShas: ReadonlySet<string>,
 ): IngestResult {
   const buckets = new Map<string, DailyBucket>();
-  const rhythms = new Map<string, AuthorRhythm>();
   const recentCommits: RecentCommit[] = [];
   const ingestedShas: string[] = [];
   let duplicateCount = 0;
@@ -112,6 +111,11 @@ export function ingestCommits(
     const additions = isMerge ? 0 : (commit.stats?.additions ?? 0);
     const deletions = isMerge ? 0 : (commit.stats?.deletions ?? 0);
 
+    // L'heure descend dans le seau : c'est ce qui rend le rythme de travail
+    // filtrable comme le reste. Le jour de la semaine, lui, ne se stocke pas —
+    // il se déduit de `day` à la lecture (`localWeekday`).
+    const hour = localHour(authoredDate);
+
     const key = bucketKey(projectKey, authorId, day);
     const bucket = buckets.get(key);
     if (bucket === undefined) {
@@ -124,23 +128,20 @@ export function ingestCommits(
         additions,
         deletions,
         merges: isMerge ? 1 : 0,
+        hourly: [hour, 1],
+        // Absent tant qu'aucun merge : c'est le cas de l'immense majorité des seaux.
+        ...(isMerge ? { hourlyMerges: [hour, 1] } : {}),
       });
     } else {
       bucket.commits += 1;
       bucket.additions += additions;
       bucket.deletions += deletions;
-      if (isMerge) bucket.merges += 1;
+      bucket.hourly = addHour(bucket.hourly ?? [], hour);
+      if (isMerge) {
+        bucket.merges += 1;
+        bucket.hourlyMerges = addHour(bucket.hourlyMerges ?? [], hour);
+      }
     }
-
-    let rhythm = rhythms.get(authorId);
-    if (rhythm === undefined) {
-      rhythm = { authorId, hours: new Array<number>(24).fill(0), weekdays: new Array<number>(7).fill(0) };
-      rhythms.set(authorId, rhythm);
-    }
-    const hour = localHour(authoredDate);
-    const weekday = localWeekday(authoredDate);
-    rhythm.hours[hour] = (rhythm.hours[hour] ?? 0) + 1;
-    rhythm.weekdays[weekday] = (rhythm.weekdays[weekday] ?? 0) + 1;
 
     recentCommits.push({
       key: `${projectKey}|${commit.id}`,
@@ -159,7 +160,6 @@ export function ingestCommits(
 
   return {
     buckets: [...buckets.values()],
-    rhythms: [...rhythms.values()],
     recentCommits,
     ingestedShas,
     ingestedCount: ingestedShas.length,

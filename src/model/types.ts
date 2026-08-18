@@ -178,6 +178,25 @@ export interface DailyBucket {
   deletions: number;
   /** Commits de merge (parent_ids > 1), comptés à part pour pouvoir les exclure. */
   merges: number;
+  /**
+   * Répartition horaire, en paires `[heure, commits]` triées par heure croissante
+   * (voir `model/hours.ts`). INCLUT les commits de merge.
+   *
+   * Absent = seau collecté avant l'introduction du champ. Les commits bruts
+   * n'étant pas archivés, l'heure de ces commits-là est définitivement perdue :
+   * seul un « Tout resynchroniser » la ramène. `undefined` signifie donc « heure
+   * inconnue », jamais `[]` — un seau qui porte au moins un commit ne peut pas
+   * avoir une répartition connue et vide. Cette distinction est le seul marqueur
+   * de couverture disponible, elle doit survivre à l'aller-retour `.json`.
+   *
+   * Invariant : somme des compteurs ≤ `commits`.
+   */
+  hourly?: number[];
+  /**
+   * Sous-ensemble de `hourly` limité aux merges — jamais un complément : les
+   * additionner compterait deux fois. Absent si le seau ne porte aucun merge.
+   */
+  hourlyMerges?: number[];
 }
 
 /** Aperçu all-time issu de `repository/contributors` (1 appel/projet). */
@@ -208,6 +227,16 @@ export interface RecentCommit {
 }
 
 /** Répartition horaire (0-23) et par jour de semaine (0=dimanche), par auteur. */
+/**
+ * @deprecated Magasin vestigial. La répartition horaire vit désormais dans
+ * `DailyBucket.hourly`, ce qui la rend filtrable comme le reste. Cette forme
+ * n'était ni datée ni rattachée à un dépôt : elle ignorait toute la barre de
+ * filtres, comptait deux fois les dépôts mirrorés, et un re-sync complet doublait
+ * ses compteurs faute de pouvoir en retirer la part d'un dépôt.
+ *
+ * Le type et son magasin IndexedDB restent déclarés pour ne pas imposer une
+ * montée de schéma — voir le commentaire de `store/db.ts`.
+ */
 export interface AuthorRhythm {
   authorId: string;
   /** 24 compteurs. */

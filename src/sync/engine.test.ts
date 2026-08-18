@@ -5,6 +5,7 @@ import { DEFAULT_SYNC_CONFIG, type SyncConfig, type GitLabInstance } from '../mo
 import { loadDataset, type Dataset } from '../store/dataset';
 import { deleteDatabase, closeDb, readMeta, writeMeta } from '../store/db';
 import type { GitLabCommit, GitLabContributor, GitLabProjectSimple } from '../gitlab/types';
+import { sumHours } from '../model/hours';
 
 /**
  * Instance GitLab simulée : projets, contributeurs, commits, pagination et
@@ -212,10 +213,17 @@ describe('SyncEngine — collecte initiale', () => {
     const totalAdditions = [...dataset.daily.values()].reduce((sum, b) => sum + b.additions, 0);
     expect(totalAdditions).toBe(750 * 10);
 
+    // Les heures sont portées par les seaux, pas par un magasin à part.
+    const knownHours = [...dataset.daily.values()].reduce((sum, b) => sum + sumHours(b.hourly), 0);
+    expect(knownHours).toBe(750);
+
     // Les données survivent à un rechargement de page.
     const reloaded = await loadDataset();
     expect(reloaded.projects.size).toBe(5);
     expect([...reloaded.daily.values()].reduce((sum, b) => sum + b.commits, 0)).toBe(750);
+    // Mémoire et IndexedDB fusionnent par deux chemins distincts : s'ils
+    // divergeaient, les chiffres changeraient au simple rechargement de l'onglet.
+    expect([...reloaded.daily.values()].reduce((sum, b) => sum + sumHours(b.hourly), 0)).toBe(knownHours);
   });
 
   it('compte le bon nombre d\'appels : 1 liste + 1 aperçu/projet + pages de commits', async () => {

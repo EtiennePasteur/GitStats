@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ingestCommits, localDay, localHour, localWeekday, trimRecentShas } from './aggregate';
+import { sumHours } from '../model/hours';
 import { IdentityResolver } from './identity';
 import { OVERLAP_DAYS } from '../model/types';
 import type { GitLabCommit } from '../gitlab/types';
@@ -189,7 +190,7 @@ describe('ingestCommits', () => {
     expect(result.newestCommittedDate).toBe('2026-08-17T10:00:00.000Z');
   });
 
-  it('construit les rythmes horaires et hebdomadaires', () => {
+  it("porte la répartition horaire dans le seau, à l'heure locale de l'auteur", () => {
     const resolver = new IdentityResolver();
     const result = ingestCommits('inst-a~1',
       [
@@ -199,9 +200,64 @@ describe('ingestCommits', () => {
       resolver,
       new Set(),
     );
-    expect(result.rhythms).toHaveLength(1);
-    expect(result.rhythms[0]!.hours[23]).toBe(2);
-    expect(result.rhythms[0]!.weekdays[1]).toBe(2); // lundi
+    // 23h à Paris et non 21h UTC : le rythme d'une personne se lit chez elle.
+    expect(result.buckets[0]!.hourly).toEqual([23, 2]);
+  });
+
+  it('regroupe les commits de la même heure et trie les heures', () => {
+    const resolver = new IdentityResolver();
+    const result = ingestCommits('inst-a~1',
+      [
+        commit({ id: '1', authored_date: '2026-08-17T14:00:00.000+02:00' }),
+        commit({ id: '2', authored_date: '2026-08-17T09:10:00.000+02:00' }),
+        commit({ id: '3', authored_date: '2026-08-17T09:50:00.000+02:00' }),
+      ],
+      resolver,
+      new Set(),
+    );
+    expect(result.buckets[0]!.hourly).toEqual([9, 2, 14, 1]);
+  });
+
+  it('somme les heures au nombre de commits du seau', () => {
+    const resolver = new IdentityResolver();
+    const result = ingestCommits('inst-a~1',
+      [
+        commit({ id: '1', authored_date: '2026-08-17T14:00:00.000+02:00' }),
+        commit({ id: '2', authored_date: '2026-08-17T09:10:00.000+02:00' }),
+        commit({ id: '3', authored_date: '2026-08-17T23:50:00.000+02:00' }),
+      ],
+      resolver,
+      new Set(),
+    );
+    const bucket = result.buckets[0]!;
+    expect(sumHours(bucket.hourly)).toBe(bucket.commits);
+  });
+
+  it('compte un merge dans les heures ET dans les heures de merge', () => {
+    const resolver = new IdentityResolver();
+    const result = ingestCommits('inst-a~1',
+      [
+        commit({ id: '1', authored_date: '2026-08-17T09:00:00.000+02:00' }),
+        commit({
+          id: '2',
+          authored_date: '2026-08-17T09:30:00.000+02:00',
+          parent_ids: ['b'.repeat(40), 'c'.repeat(40)],
+        }),
+      ],
+      resolver,
+      new Set(),
+    );
+    const bucket = result.buckets[0]!;
+    // `hourlyMerges` est un SOUS-ENSEMBLE de `hourly`, jamais un complément :
+    // les additionner compterait le merge deux fois.
+    expect(bucket.hourly).toEqual([9, 2]);
+    expect(bucket.hourlyMerges).toEqual([9, 1]);
+  });
+
+  it("n'attache aucune heure de merge à un seau qui n'en contient pas", () => {
+    const resolver = new IdentityResolver();
+    const result = ingestCommits('inst-a~1', [commit({ id: '1' })], resolver, new Set());
+    expect(result.buckets[0]!.hourlyMerges).toBeUndefined();
   });
 
   it('produit les entrées du fil d\'activité', () => {

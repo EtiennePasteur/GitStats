@@ -18,11 +18,11 @@ import type {
   DailyBucket,
   ProjectOverview,
   RecentCommit,
-  AuthorRhythm,
   SyncConfig,
   SyncWindow,
 } from '../model/types';
 import { DEFAULT_SYNC_CONFIG } from '../model/types';
+import { sanitizeHours } from '../model/hours';
 import { migrateV1ToV2, type V1Snapshot } from './migrate';
 import type { Dataset } from './dataset';
 import { emptyDataset } from './dataset';
@@ -31,14 +31,24 @@ export const FILE_FORMAT = 'gitstats';
 export const FILE_VERSION = 2;
 
 /**
- * `[projectIndex, authorIndex, day, commits, additions, deletions, merges]`
+ * `[projectIndex, authorIndex, day, commits, additions, deletions, merges,
+ *   hourly?, hourlyMerges?]`
  *
  * Les clés de projet sont désormais des chaînes (`instance~42`) : les indexer
  * comme les auteurs évite de répéter le nom de l'instance sur chacune des
  * dizaines de milliers de lignes.
+ *
+ * Les deux derniers éléments sont OMIS quand le seau ne porte pas d'heures : une
+ * ligne de longueur 7 signifie « heure inconnue », et c'est ce qui fait survivre
+ * le marqueur de couverture à l'aller-retour fichier. Les émettre à vide ferait
+ * mentir la carte « Rythme de travail » après un export/import.
  */
-type PackedDaily = [number, number, string, number, number, number, number];
-/** `[authorIndex, heures[24], joursSemaine[7]]` */
+type PackedDaily = [number, number, string, number, number, number, number, number[]?, number[]?];
+/**
+ * `[authorIndex, heures[24], joursSemaine[7]]`
+ * @deprecated Voir `AuthorRhythm`. Toujours émis à vide pour qu'un fichier neuf
+ * reste lisible par une version antérieure de l'application.
+ */
 type PackedRhythm = [number, number[], number[]];
 
 export interface GitStatsFile {
@@ -91,7 +101,7 @@ export function serializeDataset(dataset: Dataset): GitStatsFile {
 
   const daily: PackedDaily[] = [];
   for (const bucket of dataset.daily.values()) {
-    daily.push([
+    const row: PackedDaily = [
       resolveProject(bucket.projectKey),
       resolveIndex(bucket.authorId),
       bucket.day,
@@ -99,13 +109,17 @@ export function serializeDataset(dataset: Dataset): GitStatsFile {
       bucket.additions,
       bucket.deletions,
       bucket.merges,
-    ]);
+    ];
+    // `hourlyMerges` sans `hourly` est impossible par construction : pas de trou
+    // à combler, la ligne s'arrête simplement plus tôt.
+    if (bucket.hourly !== undefined) {
+      row.push(bucket.hourly);
+      if (bucket.hourlyMerges !== undefined) row.push(bucket.hourlyMerges);
+    }
+    daily.push(row);
   }
 
   const rhythms: PackedRhythm[] = [];
-  for (const rhythm of dataset.rhythms.values()) {
-    rhythms.push([resolveIndex(rhythm.authorId), rhythm.hours, rhythm.weekdays]);
-  }
 
   const { forceFullResync: _ignored, ...config } = dataset.meta?.config ?? DEFAULT_SYNC_CONFIG;
 
@@ -164,8 +178,10 @@ export function deserializeDataset(raw: unknown): Dataset {
   for (const author of normalized.authors ?? []) dataset.authors.set(author.id, author);
 
   for (const row of normalized.daily ?? []) {
+    // Une ligne de 7 éléments vient d'une version antérieure : elle reste lisible,
+    // simplement sans heures.
     if (!Array.isArray(row) || row.length < 7) continue;
-    const [projectIdx, authorIdx, day, commits, additions, deletions, merges] = row;
+    const [projectIdx, authorIdx, day, commits, additions, deletions, merges, hourly, hourlyMerges] = row;
     const authorId = authorIndex[authorIdx];
     const key = projectIndex[projectIdx];
     if (authorId === undefined || key === undefined) continue;
@@ -178,21 +194,10 @@ export function deserializeDataset(raw: unknown): Dataset {
       additions,
       deletions,
       merges,
+      hourly: sanitizeHours(hourly),
+      hourlyMerges: sanitizeHours(hourlyMerges),
     };
     dataset.daily.set(bucket.key, bucket);
-  }
-
-  for (const row of normalized.rhythms ?? []) {
-    if (!Array.isArray(row) || row.length < 3) continue;
-    const [authorIdx, hours, weekdays] = row;
-    const authorId = authorIndex[authorIdx];
-    if (authorId === undefined) continue;
-    const rhythm: AuthorRhythm = {
-      authorId,
-      hours: normalizeCounters(hours, 24),
-      weekdays: normalizeCounters(weekdays, 7),
-    };
-    dataset.rhythms.set(authorId, rhythm);
   }
 
   for (const overview of normalized.overviews ?? []) {
@@ -210,16 +215,6 @@ export function deserializeDataset(raw: unknown): Dataset {
   };
 
   return dataset;
-}
-
-function normalizeCounters(values: unknown, length: number): number[] {
-  const result = new Array<number>(length).fill(0);
-  if (!Array.isArray(values)) return result;
-  for (let i = 0; i < length; i++) {
-    const value = values[i];
-    result[i] = typeof value === 'number' && Number.isFinite(value) ? value : 0;
-  }
-  return result;
 }
 
 /**
@@ -293,6 +288,7 @@ export function defaultFileName(label: string, now = new Date()): string {
 }
 
 export function estimateFileSize(dataset: Dataset): number {
-  // ~55 octets par ligne packée, plus les métadonnées projets/auteurs.
-  return dataset.daily.size * 55 + dataset.projects.size * 420 + dataset.recentCommits.size * 190;
+  // ~62 octets par ligne packée (55 + la répartition horaire creuse), plus les
+  // métadonnées projets/auteurs.
+  return dataset.daily.size * 62 + dataset.projects.size * 420 + dataset.recentCommits.size * 190;
 }

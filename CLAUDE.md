@@ -101,6 +101,30 @@ Réglages ; la fiche d'un dépôt, elle, appelle `useAnalytics({ includeMuted: t
 - `activeDays` compte les **jours distincts**, pas les seaux. Il y a un seau par
   (projet, auteur, jour) : sommer les seaux donne « 1 796 jours actifs » sur 365.
 
+### Rythme de travail — heures dans le seau
+La répartition horaire est portée par `DailyBucket.hourly` (paires `[heure,
+commits]` triées, `model/hours.ts`), et non par un magasin à part. Ce qui en
+dépend :
+- `somme(hourly) ≤ commits` est un **invariant**, y compris après filtrage :
+  `filterBuckets` retranche `hourlyMerges` quand les merges sont masqués, sinon
+  le total du graphe dépasserait le KPI « Commits » de la même page.
+  `hourlyMerges` est un **sous-ensemble** de `hourly`, jamais un complément.
+- `undefined` ≠ `[]`. `undefined` = heure inconnue (seau collecté avant
+  l'introduction du champ, irrécupérable sans `forceFullResync`) ; c'est le seul
+  marqueur de couverture, et il doit survivre à l'aller-retour `.json` — d'où les
+  lignes de longueur 7 conservées telles quelles par `serialize.ts`.
+- Le **jour de la semaine ne se stocke pas** : `localWeekday(bucket.day)` le
+  déduit. Il est donc exact sur 100 % du périmètre, là où les heures ne couvrent
+  que les seaux collectés depuis. `rhythmFromBuckets` renvoie `known`/`total`
+  pour que la carte dise sa couverture au lieu de la taire.
+- L'ancienne forme `AuthorRhythm` (24 + 7 compteurs par auteur) est **dépréciée** :
+  sans date ni dépôt, elle ignorait toute la barre de filtres, comptait double les
+  dépôts mirrorés, et un re-sync complet doublait ses compteurs faute de pouvoir
+  en retirer la part d'un dépôt. Son magasin IndexedDB reste **déclaré mais vide** :
+  le bloc `upgrade` de `store/db.ts` est gardé par `oldVersion >= 1` sans borne
+  haute, donc une version 3 du schéma rejouerait la migration v1→v2 sur une base
+  v2 et détruirait les données. Resserrer ce garde-fou avant de le supprimer.
+
 ### Identités des personnes
 - `authorId` dérive de l'e-mail normalisé ⇒ **indépendant de l'instance**.
   L'agrégation cross-instances d'une même personne est donc gratuite.

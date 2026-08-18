@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAnalytics, authorName } from '../query/useAnalytics';
-import { useAppStore } from '../store/useAppStore';
 import type { ProjectKey } from '../model/types';
 import { byDay, byDayAndAuthor, pickGranularity, type AuthorStats } from '../query/selectors';
+import { rhythmFromBuckets, type Rhythm } from '../query/rhythm';
 import { DataTable, type Column } from '../components/DataTable';
 import {
   ActivityCalendar,
@@ -193,12 +193,25 @@ export function People() {
   );
 }
 
+/**
+ * Dit ce que la carte montre vraiment. Les seaux collectés avant l'introduction
+ * de la répartition horaire ne portent pas d'heure : le taire laisserait lire
+ * une semaine de données sous le titre d'une année.
+ */
+function rhythmSubtitle(rhythm: Rhythm): string {
+  if (rhythm.total === 0) return 'sur la période sélectionnée';
+  if (rhythm.known === 0) return 'jours calculés dans le fuseau de l\'auteur du commit';
+  if (rhythm.known < rhythm.total) {
+    return `heure connue sur ${formatNumber(rhythm.known)} des ${formatNumber(rhythm.total)} commits de la période`;
+  }
+  return 'heures et jours calculés dans le fuseau de l\'auteur du commit';
+}
+
 export function PersonDetail() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
   const authorId = decodeURIComponent(params.id ?? '');
-  const { authorsById, projectsById, authorColors, palette, buckets } = useAnalytics();
-  const rhythms = useAppStore((state) => state.dataset.rhythms);
+  const { authorsById, projectsById, authorColors, palette, buckets, range } = useAnalytics();
 
   const author = authorsById.get(authorId);
   const mine = useMemo(() => buckets.filter((bucket) => bucket.authorId === authorId), [buckets, authorId]);
@@ -219,12 +232,23 @@ export function PersonDetail() {
     return { commits, additions, deletions, projects, activeDays: days.size };
   }, [mine]);
 
-  const dayPoints = useMemo(() => byDay(mine), [mine]);
-    const timeline = useMemo(
-    () => byDayAndAuthor(mine, [authorId], { granularity: pickGranularity(dayPoints.length) }),
-    [mine, authorId, dayPoints.length],
+  // Les axes suivent la période choisie et non l'étendue des commits de la
+  // personne : sans bornes, `byDay` recadre sur son premier et son dernier
+  // commit, et les bords vides de la période disparaissent.
+  const dayPoints = useMemo(
+    () => byDay(mine, range.from ?? undefined, range.to ?? undefined),
+    [mine, range],
   );
-  const rhythm = rhythms.get(authorId);
+  const timeline = useMemo(
+    () =>
+      byDayAndAuthor(mine, [authorId], {
+        from: range.from ?? undefined,
+        to: range.to ?? undefined,
+        granularity: pickGranularity(dayPoints.length),
+      }),
+    [mine, authorId, range, dayPoints.length],
+  );
+  const rhythm = useMemo(() => rhythmFromBuckets(mine), [mine]);
 
   if (author === undefined) {
     return <EmptyState title="Contributeur introuvable">Cette personne n'existe pas dans les données locales.</EmptyState>;
@@ -303,14 +327,33 @@ export function PersonDetail() {
         </Card>
       </div>
 
-      {rhythm !== undefined && (
-        <Card
-          title="Rythme de travail"
-          subtitle="heures et jours calculés dans le fuseau de l'auteur du commit"
-        >
-          <RhythmChart hours={rhythm.hours} weekdays={rhythm.weekdays} palette={palette} />
-        </Card>
-      )}
+      <Card title="Rythme de travail" subtitle={rhythmSubtitle(rhythm)}>
+        {rhythm.total === 0 ? (
+          <EmptyState title="Aucun commit sur cette période." />
+        ) : (
+          <>
+            <RhythmChart
+              hours={rhythm.hours}
+              weekdays={rhythm.weekdays}
+              palette={palette}
+              showHours={rhythm.known > 0}
+              stale={rhythm.known > 0 && rhythm.known < rhythm.total}
+            />
+            {rhythm.known === 0 && (
+              // Le jour de la semaine se déduit de la date du seau, donc il reste
+              // exact ; l'heure, elle, n'a jamais été archivée pour ces commits.
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
+                L'heure des commits n'est collectée que depuis la mise à jour de
+                l'application. Lancez « Tout resynchroniser » dans les{' '}
+                <Link to="/reglages" className="text-[var(--series-1)] hover:underline">
+                  Réglages
+                </Link>{' '}
+                pour la récupérer sur l'historique.
+              </p>
+            )}
+          </>
+        )}
+      </Card>
 
       {author.identityKeys.length > 1 && (
         <Card title="Identités rattachées" subtitle="modifiable dans les réglages">

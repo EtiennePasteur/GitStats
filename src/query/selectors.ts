@@ -10,6 +10,7 @@
 
 import type { DailyBucket, StoredAuthor, StoredProject, ProjectKey } from '../model/types';
 import { instanceOfProject } from '../model/types';
+import { subtractHours } from '../model/hours';
 
 export interface Filters {
   /** Bornes incluses, `YYYY-MM-DD`. `null` = pas de borne. */
@@ -148,7 +149,17 @@ export function filterBuckets(
     if (filters.excludeMerges) {
       const net = bucket.commits - bucket.merges;
       if (net <= 0) continue;
-      result.push({ ...bucket, authorId, commits: net, merges: 0 });
+      // Les heures suivent les commits : sans cette soustraction, le total du
+      // rythme de travail dépasserait le nombre de commits affiché juste
+      // au-dessus. Le lecteur peut alors sommer `hourly` sans connaître le filtre.
+      result.push({
+        ...bucket,
+        authorId,
+        commits: net,
+        merges: 0,
+        hourly: subtractHours(bucket.hourly, bucket.hourlyMerges),
+        hourlyMerges: undefined,
+      });
     } else if (renamed) {
       // Copie : les seaux d'origine appartiennent au Dataset partagé et ne
       // doivent jamais être mutés par une lecture.
