@@ -6,6 +6,8 @@
  *  - légende présente dès 2 séries, jamais pour une seule (le titre la nomme) ;
  *  - étiquetage direct sélectif, jamais une valeur sur chaque point ;
  *  - écart de 2 px entre remplissages empilés au lieu d'une bordure ;
+ *  - empilement réservé aux lectures de composition ; comparer des entités
+ *    entre elles demande des courbes partant toutes de zéro ;
  *  - infobulle systématique, et une vue tableau équivalente à côté ;
  *  - couleur attribuée par entité, jamais par rang.
  */
@@ -30,7 +32,15 @@ function formatAxisDate(value: string, granularity: Granularity): string {
   return `${date.getUTCDate()} ${month}`;
 }
 
-/** Aire empilée des commits dans le temps, une série par contributeur nommé. */
+/**
+ * Commits dans le temps, une série par contributeur nommé.
+ *
+ * Deux lectures, choisies par `stacked` :
+ *  - empilé (défaut) : la composition d'un total — « combien de commits ce
+ *    jour-là, et de qui » ;
+ *  - courbes : « qui est plus actif que qui ». Empiler interdit cette lecture,
+ *    la hauteur d'une bande dépendant de celles posées en dessous.
+ */
 export function CommitTimeline({
   days,
   series,
@@ -39,6 +49,7 @@ export function CommitTimeline({
   palette,
   granularity = 'day',
   height = 300,
+  stacked = true,
   stale,
 }: {
   days: string[];
@@ -48,15 +59,21 @@ export function CommitTimeline({
   palette: Palette;
   granularity?: Granularity;
   height?: number;
+  /** `false` : une courbe pleine par entité, toutes partant de zéro. */
+  stacked?: boolean;
   stale?: boolean;
 }) {
   const option = useMemo<EChartsOption>(() => {
-    // L'ordre vient du sélecteur : « Autres » d'abord, donc au bas de la pile.
+    // L'ordre vient du sélecteur : « Autres » d'abord, donc au bas de la pile —
+    // et, sans pile, tracé en premier donc derrière les séries nommées.
     const ordered = series;
+    // Au-delà de 4 courbes, des noms posés au bout se marchent dessus : la
+    // légende redevient seule porteuse de l'identité.
+    const endLabels = !stacked && ordered.length <= 4;
 
     return {
       animation: false,
-      grid: { top: 16, right: 16, bottom: 52, left: 52 },
+      grid: { top: 16, right: endLabels ? 112 : 16, bottom: 52, left: 52 },
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'line', lineStyle: { color: palette.axis, width: 1 } },
@@ -102,24 +119,42 @@ export function CommitTimeline({
       series: ordered.map((entry) => ({
         type: 'line' as const,
         name: entry.authorId === OTHER_SERIES_ID ? OTHER_LABEL : nameOf(entry.authorId),
-        stack: 'commits',
-        smooth: 0.2,
+        stack: stacked ? 'commits' : undefined,
+        // Empilé, le lissage est sans risque. Nue, une courbe expose le
+        // dépassement de la spline sous zéro sur des séries en dents de scie :
+        // des commits négatifs à l'écran.
+        smooth: stacked ? 0.2 : false,
         showSymbol: false,
         symbolSize: 8,
         lineStyle: { width: 2 },
-        // Un liseré à la couleur de la surface sépare les aires empilées :
-        // c'est l'écart de 2 px demandé, pas une bordure décorative.
-        areaStyle: { opacity: 0.55 },
+        ...(stacked ? { areaStyle: { opacity: 0.55 } } : {}),
+        ...(endLabels
+          ? {
+              endLabel: {
+                show: true,
+                color: palette.textSecondary,
+                fontSize: 11,
+                width: 92,
+                overflow: 'truncate' as const,
+                formatter: (params: { seriesName?: string }) => params.seriesName ?? '',
+              },
+              // Deux personnes qui finissent au même niveau : on décale plutôt
+              // que superposer deux noms illisibles.
+              labelLayout: { moveOverlap: 'shiftY' as const },
+            }
+          : {}),
         emphasis: { focus: 'series' as const },
         itemStyle: {
           color: entry.authorId === OTHER_SERIES_ID ? palette.other : colors.colorOf(entry.authorId),
-          borderColor: palette.surface,
-          borderWidth: 2,
+          // Un liseré à la couleur de la surface sépare les aires empilées :
+          // c'est l'écart de 2 px demandé, pas une bordure décorative. Sans
+          // pile il ne ferait que cerner les symboles.
+          ...(stacked ? { borderColor: palette.surface, borderWidth: 2 } : {}),
         },
         data: entry.values,
       })),
     };
-  }, [days, series, colors, nameOf, palette, granularity]);
+  }, [days, series, colors, nameOf, palette, granularity, stacked]);
 
   return <EChart option={option} height={height} stale={stale} aria-label="Commits dans le temps par contributeur" />;
 }

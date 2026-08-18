@@ -124,6 +124,10 @@ Contraintes déjà appliquées, à ne pas casser :
   classement *non filtré* : changer la plage de dates ne doit repeindre personne.
 - Au-delà de 8 séries → « Autres », jamais une 9ᵉ teinte générée. La série
   « Autres » est renvoyée **en tête** pour se placer au bas de la pile.
+- L'empilement est réservé aux lectures de **composition** (Global, Projets,
+  Personnes). Comparer trace des **courbes non empilées** (`stacked={false}`) :
+  empilées, deux bandes ne se comparent pas, la hauteur de l'une dépendant de
+  celles posées en dessous.
 - Un seul axe des ordonnées. Jamais de double échelle.
 - Agrégation temporelle automatique (`pickGranularity`) au-delà de 92 jours, et
   les seaux de bord partiels sont **rognés pour l'affichage uniquement** — les

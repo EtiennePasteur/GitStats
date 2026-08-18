@@ -104,7 +104,7 @@ La fiche individuelle ajoute la répartition par dépôt et le rythme de travail
 
 ### Comparer
 
-De 2 à 5 personnes côte à côte : séries temporelles empilées, profil radar
+De 2 à 5 personnes côte à côte : une courbe de commits par personne, profil radar
 normalisé sur le maximum du groupe, et le tableau des valeurs brutes en dessous —
 parce qu'un radar sert à voir une forme, pas à lire un chiffre.
 

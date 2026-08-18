@@ -62,8 +62,8 @@ export function Compare() {
 
   /**
    * L'ordre d'affichage suit le classement par commits, jamais l'ordre des
-   * clics : le même groupe de personnes doit donner exactement la même pile,
-   * quel que soit l'ordre dans lequel on les a choisies.
+   * clics : le même groupe de personnes doit donner exactement le même
+   * graphique, quel que soit l'ordre dans lequel on les a choisies.
    */
   const compared = useMemo(
     () => authors.filter((entry) => effective.includes(entry.authorId)),
@@ -261,7 +261,12 @@ export function Compare() {
       ) : (
         <>
           <div className="grid gap-5 lg:grid-cols-[1fr_420px]">
-            <Card title="Commits dans le temps" subtitle="valeurs brutes, empilées">
+            <Card title="Commits dans le temps" subtitle="valeurs brutes, une courbe par personne">
+              {/*
+                Non empilé : c'est tout l'objet de l'onglet. Empilées, deux
+                bandes ne se comparent pas — la hauteur de l'une dépend de
+                celles posées en dessous.
+              */}
               <CommitTimeline
                 days={timeline.days}
                 series={timeline.series}
@@ -270,6 +275,7 @@ export function Compare() {
                 palette={palette}
                 granularity={timeline.granularity}
                 height={340}
+                stacked={false}
               />
             </Card>
 
