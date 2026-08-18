@@ -1,10 +1,10 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 5010, "title": "Landing GitStats — direction A" }
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 3720, "title": "Landing GitStats — produit" }
   ],
   "annotations": [
-    { "id": "note-tuiles", "x": 1540, "y": 0, "w": 330, "text": "Les quatre tuiles « Tous / Fusionnées / 0 / Nulle part » sont supprimées.\n\nCe qu'elles annonçaient est maintenant montré :\n— « 0 backend » devient la bande « le trajet des données » (navigateur → instances, et la liste barrée de ce qui n'existe pas) ;\n— « Fusionnées » devient le schéma de rapprochement d'identités dans la carte 04 ;\n— « Tous vos dépôts » est déjà le titre, inutile de le répéter en chiffre." },
-    { "id": "note-captures", "x": 1540, "y": 380, "w": 330, "text": "Captures recadrées à hauteur égale (310 px, ancrage haut) pour que la grille des écrans ne laisse pas de fonds vides." }
+    { "id": "note-anim", "x": 1540, "y": 0, "w": 340, "text": "Ce qui bouge :\n— le graphe d'aires mute entre deux périodes (morphing de tracé, 14 s) ;\n— les barres du rythme de travail montent et redescendent en vague ;\n— le calendrier s'allume cellule par cellule ;\n— des impulsions remontent le fil navigateur → instances ;\n— le dépôt miroir se replie sur l'original, en boucle." },
+    { "id": "note-texte", "x": 1540, "y": 400, "w": 340, "text": "Le texte est tombé d'environ 1 400 mots à moins de 120 : un titre, une phrase, trois moments de trois lignes, un appel final." }
   ],
   "launch": { "view": "focused", "file": "Main.dc.html" }
 }
