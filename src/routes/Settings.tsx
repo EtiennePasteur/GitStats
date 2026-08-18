@@ -110,7 +110,7 @@ export function Settings() {
               }}
               className="h-8 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 text-sm"
             >
-              {[3, 6, 12, 24, 36].map((months) => (
+              {[3, 6, 12, 24, 36, 48, 60].map((months) => (
                 <option key={months} value={months}>
                   {months} mois
                 </option>

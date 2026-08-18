@@ -10,6 +10,9 @@ const WINDOWS: Array<{ months: number | null; label: string; hint: string }> = [
   { months: 6, label: '6 mois', hint: '~2 min' },
   { months: 12, label: '12 mois', hint: '~3 à 7 min' },
   { months: 24, label: '24 mois', hint: '~10 min' },
+  { months: 36, label: '36 mois', hint: '~15 min' },
+  { months: 48, label: '48 mois', hint: '~20 min' },
+  { months: 60, label: '60 mois', hint: '~25 min' },
   { months: null, label: 'Tout', hint: 'peut être long' },
 ];
 
