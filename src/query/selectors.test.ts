@@ -296,7 +296,14 @@ describe('utilitaires', () => {
 });
 
 describe('performance', () => {
-  it('filtre et agrège 150 000 seaux sous 100 ms', () => {
+  // Garde-fou contre une régression d'ordre de grandeur — retour d'un accès
+  // quadratique ou d'un aller-retour en base — et non un banc de mesure : le
+  // budget est large parce qu'un runner CI partagé est ~6× plus lent qu'un poste
+  // de développement (20 ms y suffisent, 118 ms observées en CI). Le resserrer
+  // ne mesurerait que la charge de la machine hôte.
+  const BUDGET_MS = 500;
+
+  it(`filtre et agrège 150 000 seaux sous ${BUDGET_MS} ms`, () => {
     const many: DailyBucket[] = [];
     for (let p = 1; p <= 234; p++) {
       for (let a = 0; a < 12; a++) {
@@ -321,6 +328,6 @@ describe('performance', () => {
     byProject(kept);
     const elapsed = performance.now() - started;
 
-    expect(elapsed).toBeLessThan(100);
+    expect(elapsed).toBeLessThan(BUDGET_MS);
   });
 });
