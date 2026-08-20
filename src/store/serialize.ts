@@ -24,7 +24,7 @@ import type {
 import { DEFAULT_SYNC_CONFIG } from '../model/types';
 import { sanitizeHours } from '../model/hours';
 import type { Dataset } from './dataset';
-import { emptyDataset } from './dataset';
+import { emptyDataset, reconcileAuthors, recoverManualAliases } from './dataset';
 
 export const FILE_FORMAT = 'gitstats';
 export const FILE_VERSION = 1;
@@ -188,6 +188,12 @@ export function deserializeDataset(raw: unknown): Dataset {
     config: { ...DEFAULT_SYNC_CONFIG, ...(file.config ?? {}) },
     manualAliases: file.manualAliases ?? {},
   };
+
+  // Le fichier est éditable à la main et peut provenir d'une version qui laissait
+  // la table des auteurs s'amputer, ou une fusion se figer dans les fiches : on
+  // rétablit les deux. Après `meta`, dont on lit les alias et les motifs de robots.
+  recoverManualAliases(dataset);
+  reconcileAuthors(dataset);
 
   return dataset;
 }

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SyncCoordinator, type AggregateProgress } from './coordinator';
-import { DEFAULT_SYNC_CONFIG, type SyncConfig, type GitLabInstance } from '../model/types';
+import { DEFAULT_SYNC_CONFIG, type SyncConfig, type GitLabInstance, type StoredMeta } from '../model/types';
 import { loadDataset, type Dataset } from '../store/dataset';
 import { deleteDatabase, closeDb, readMeta, writeMeta } from '../store/db';
 import type { GitLabCommit, GitLabContributor, GitLabProjectSimple } from '../gitlab/types';
@@ -267,6 +267,32 @@ describe('SyncEngine — incrémental (le point critique)', () => {
     expect(fake.calls[0]).toContain('/projects?');
   });
 
+  it('ne perd pas les contributeurs des dépôts restés inchangés', async () => {
+    const fake = new FakeGitLab(50, 40);
+    const now = new Date('2026-08-17T12:00:00.000Z');
+    const NAMES = ['Amélie Rivière', 'Marie Durand'];
+
+    const first = await loadDataset();
+    await makeEngine(fake, first, CONFIG, now).engine.run();
+    expect([...first.authors.values()].map((a) => a.displayName).sort()).toEqual(NAMES);
+
+    // 2ᵉ passage sans aucune activité : le résolveur n'observe RIEN, alors que
+    // `flushAuthors()` réécrit tout le magasin des auteurs. Sans réamorçage, les
+    // 738 contributeurs d'un vrai parc disparaissaient ici en une seule passe,
+    // laissant les seaux pointer sur des fiches inexistantes.
+    await closeDb();
+    const second = await loadDataset();
+    await makeEngine(fake, second, CONFIG, now).engine.run();
+    expect([...second.authors.values()].map((a) => a.displayName).sort()).toEqual(NAMES);
+
+    // Le nom d'affichage est le juge de paix : `reconcileAuthors` sait recréer une
+    // fiche depuis un seau orphelin, mais pas retrouver « Amélie Rivière » —
+    // seulement « a.riviere ». S'il passait par là, ce test tomberait.
+    await closeDb();
+    const third = await loadDataset();
+    expect([...third.authors.values()].map((a) => a.displayName).sort()).toEqual(NAMES);
+  });
+
   it('ne resynchronise que les dépôts réellement actifs', async () => {
     const fake = new FakeGitLab(50, 40);
     const now = new Date('2026-08-17T12:00:00.000Z');
@@ -479,6 +505,77 @@ describe('SyncEngine — robustesse', () => {
 
     expect(second.authors.size).toBe(1);
     expect([...second.authors.keys()]).toEqual(['a.riviere@example.com']);
+  });
+
+  it('ne renomme pas une personne fusionnée avec le nom de l\'identité absorbée', async () => {
+    const fake = new FakeGitLab(2, 9);
+    const now = new Date('2026-08-17T12:00:00.000Z');
+    const dataset = await loadDataset();
+    await makeEngine(fake, dataset, CONFIG, now).engine.run();
+
+    // Sens DÉFAVORABLE : on garde Marie, dont l'adresse trie APRÈS celle
+    // d'Amélie. Le magasin étant relu trié par `id`, l'identité absorbée est
+    // réamorcée la première — son nom ne doit pas pour autant s'imposer.
+    await writeMeta({
+      instances: [INSTANCE_A],
+      window: null,
+      lastSyncAt: null,
+      config: CONFIG,
+      manualAliases: { 'a.riviere@example.com': 'm.durand@example.com' },
+    });
+
+    // Aucun `push()` : ce sync n'observe personne, comme un incrémental sur un
+    // parc calme. Il réécrit malgré tout toute la table des auteurs.
+    await closeDb();
+    const second = await loadDataset();
+    await makeEngine(fake, second, CONFIG, now).engine.run();
+
+    expect([...second.authors.keys()]).toEqual(['m.durand@example.com']);
+    expect(second.authors.get('m.durand@example.com')!.displayName).toBe('Marie Durand');
+  });
+
+  it('rend gérable une fusion que seules les fiches portaient encore', async () => {
+    const fake = new FakeGitLab(2, 9);
+    const now = new Date('2026-08-17T12:00:00.000Z');
+    const dataset = await loadDataset();
+    await makeEngine(fake, dataset, CONFIG, now).engine.run();
+
+    const meta: StoredMeta = {
+      instances: [INSTANCE_A],
+      window: null,
+      lastSyncAt: null,
+      config: CONFIG,
+      manualAliases: { 'm.durand@example.com': 'a.riviere@example.com' },
+    };
+    await writeMeta(meta);
+
+    fake.push(1, '2026-08-17T11:00:00.000Z');
+    await closeDb();
+    const second = await loadDataset();
+    await makeEngine(fake, second, CONFIG, now).engine.run();
+    // La fusion s'est matérialisée dans la fiche : deux clés d'identité.
+    expect(second.authors.get('a.riviere@example.com')!.identityKeys).toHaveLength(2);
+
+    // L'alias est perdu — c'est l'état produit par l'ancien code, et celui d'un
+    // export où `manualAliases` est vide alors qu'une fiche porte deux adresses.
+    // La fusion était alors ingérable : active via la fiche, mais absente des
+    // réglages, qui listent `manualAliases`. Donc aucun bouton « Annuler ».
+    await writeMeta({ ...meta, manualAliases: {} });
+
+    fake.push(2, '2026-08-17T11:30:00.000Z');
+    await closeDb();
+    const third = await loadDataset();
+
+    // Au chargement, la décision est reconstituée : elle redevient visible.
+    expect(third.meta?.manualAliases).toEqual({
+      'm.durand@example.com': 'a.riviere@example.com',
+    });
+
+    // Et le sync la respecte, sans la refiger : la fusion reste portée par
+    // l'alias, seule source de vérité.
+    await makeEngine(fake, third, CONFIG, now).engine.run();
+    expect([...third.authors.keys()]).toEqual(['a.riviere@example.com']);
+    expect(third.authors.get('a.riviere@example.com')!.identityKeys).toHaveLength(2);
   });
 });
 

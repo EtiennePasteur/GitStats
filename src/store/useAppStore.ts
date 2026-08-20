@@ -20,7 +20,13 @@ import {
   type StoredMeta,
   type GitLabInstance,
 } from '../model/types';
-import { loadDataset, persistWholeDataset, emptyDataset, type Dataset } from './dataset';
+import {
+  loadDataset,
+  persistWholeDataset,
+  emptyDataset,
+  alignAuthorsToAliases,
+  type Dataset,
+} from './dataset';
 import * as db from './db';
 import { serializeDataset, deserializeDataset } from './serialize';
 import { saveToLinkedFile, getLinkedFileName } from './fileHandle';
@@ -378,6 +384,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     meta.manualAliases = aliases;
     await db.writeMeta(meta);
     dataset.meta = meta;
+
+    // Appliquer une fusion se résout à la lecture, mais l'ANNULER doit défaire ce
+    // qu'un sync avait matérialisé dans les fiches : sans ce réalignement, la
+    // personne garderait ses deux adresses et l'alias serait rétabli d'office au
+    // prochain chargement (`recoverManualAliases`).
+    const detached = alignAuthorsToAliases(dataset);
+    if (detached.length > 0) await db.writeAuthors([...dataset.authors.values()]);
+
     get().touchData();
   },
 }));

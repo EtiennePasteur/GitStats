@@ -7,7 +7,7 @@ import {
   IdentityResolver,
   suggestMerges,
 } from './identity';
-import { DEFAULT_SYNC_CONFIG } from '../model/types';
+import { DEFAULT_SYNC_CONFIG, type StoredAuthor } from '../model/types';
 
 const BOTS = DEFAULT_SYNC_CONFIG.botPatterns;
 
@@ -124,6 +124,148 @@ describe('IdentityResolver', () => {
     const authors = resolver.toAuthors(BOTS);
     expect(authors.filter((a) => a.isBot)).toHaveLength(1);
     expect(authors).toHaveLength(2);
+  });
+});
+
+describe('IdentityResolver.adopt — survie au sync incrémental', () => {
+  const known: StoredAuthor = {
+    id: 'a.riviere@example.com',
+    displayName: 'Amélie Rivière',
+    primaryEmail: 'A.Riviere@example.com',
+    identityKeys: ['a.riviere@example.com'],
+    knownNames: ['Amélie Rivière', 'a.riviere'],
+    knownEmails: ['a.riviere@example.com'],
+    isBot: false,
+  };
+
+  it('conserve une personne mono-adresse qu\'aucun dépôt n\'a fait réapparaître', () => {
+    // Le cas qui vidait la table : un sync incrémental où ce dépôt n'a pas bougé,
+    // donc zéro `observe()` pour cette personne.
+    const resolver = new IdentityResolver();
+    resolver.adopt(known);
+
+    const authors = resolver.toAuthors(BOTS);
+    expect(authors).toHaveLength(1);
+    expect(authors[0]!.id).toBe(known.id);
+    // Le nom élu au passage précédent doit survivre, pas retomber sur « a.riviere ».
+    expect(authors[0]!.displayName).toBe('Amélie Rivière');
+    expect(authors[0]!.knownNames).toEqual(['Amélie Rivière', 'a.riviere'].sort());
+    expect(authors[0]!.primaryEmail).toBe('a.riviere@example.com');
+  });
+
+  it('ne masque pas les personnes réamorcées derrière celles observées', () => {
+    const resolver = new IdentityResolver();
+    resolver.adopt(known);
+    resolver.observe({ name: 'Karim Ben Ali', email: 'k.benali@example.org' }, 12);
+
+    expect(resolver.toAuthors(BOTS).map((a) => a.id).sort()).toEqual([
+      'a.riviere@example.com',
+      'k.benali@example.org',
+    ]);
+  });
+
+  it('laisse les observations de ce sync trancher l\'élection du nom', () => {
+    const resolver = new IdentityResolver();
+    resolver.adopt(known);
+    // Les compteurs du passé ne sont pas persistés : une variante réellement
+    // observée pèse plus que le nom simplement réamorcé.
+    resolver.observe({ name: 'Amelie RIVIERE', email: 'a.riviere@example.com' }, 4);
+
+    expect(resolver.toAuthors(BOTS)[0]!.displayName).toBe('Amelie RIVIERE');
+  });
+
+  it('ne rejoue PAS une fusion qu\'aucun alias ne justifie', () => {
+    // `identityKeys` est de la donnée dérivée : seul `manualAliases` décide.
+    // La rejouer comme une fusion rendait le regroupement indéfectible — annuler
+    // retirait l'alias, et le sync suivant le reconstituait depuis la fiche.
+    const resolver = new IdentityResolver();
+    resolver.adopt({ ...known, identityKeys: [known.id, 'amelie.riviere@example.net'] });
+
+    expect(resolver.toAuthors(BOTS).map((a) => a.id).sort()).toEqual([
+      'a.riviere@example.com',
+      'amelie.riviere@example.net',
+    ]);
+  });
+
+  it('rattache la fiche réamorcée à la racine d\'une fusion manuelle', () => {
+    const canonical = 'amelie.riviere@example.net';
+    const resolver = new IdentityResolver({ [known.id]: canonical });
+    resolver.adopt(known);
+
+    const authors = resolver.toAuthors(BOTS, { [known.id]: canonical });
+    expect(authors).toHaveLength(1);
+    expect(authors[0]!.id).toBe(canonical);
+    // Les noms de la fiche absorbée remontent sur la personne conservée.
+    expect(authors[0]!.knownNames).toContain('Amélie Rivière');
+  });
+
+  // Fusion « on garde Marie » : l'identité absorbée trie AVANT la fiche
+  // conservée, donc le magasin la relit en premier.
+  const MERGED_INTO_MARIE = { [known.id]: 'm.durand@example.com' };
+  const marie: StoredAuthor = {
+    id: 'm.durand@example.com',
+    displayName: 'Marie Durand',
+    primaryEmail: 'm.durand@example.com',
+    identityKeys: [known.id, 'm.durand@example.com'],
+    knownNames: ['Amélie Rivière', 'Marie Durand'],
+    knownEmails: [known.id, 'm.durand@example.com'],
+    isBot: false,
+    manual: true,
+  };
+
+  it('adopte les fiches racines avant les identités absorbées', () => {
+    // Les noms réamorcés pèsent tous zéro : l'élection se joue donc à l'ordre
+    // d'insertion. Sans racines d'abord, le nom de l'identité absorbée s'impose
+    // et la personne se renomme toute seule au sync suivant — alors que
+    // l'utilisateur avait choisi de garder Marie.
+    const resolver = new IdentityResolver(MERGED_INTO_MARIE);
+    resolver.adoptAll([known, marie]);
+
+    const authors = resolver.toAuthors(BOTS, MERGED_INTO_MARIE);
+    expect(authors).toHaveLength(1);
+    expect(authors[0]!.displayName).toBe('Marie Durand');
+    // La fusion reste entière : le nom absorbé n'est pas perdu, juste pas élu.
+    expect(authors[0]!.knownNames).toContain('Amélie Rivière');
+  });
+
+  it('ne sème pas le nom fabriqué d\'une fiche reconstituée', () => {
+    // `reconcileAuthors` rend une fiche minimale à toute identité citée par un
+    // seau, faute de mieux nommée par la partie locale de son adresse. La semer
+    // ferait passer « a.riviere » pour un nom collecté, et l'imposerait à Marie.
+    const resolver = new IdentityResolver(MERGED_INTO_MARIE);
+    resolver.adoptAll([
+      { ...known, displayName: 'a.riviere', knownNames: [], knownEmails: [] },
+      marie,
+    ]);
+
+    const authors = resolver.toAuthors(BOTS, MERGED_INTO_MARIE);
+    expect(authors[0]!.displayName).toBe('Marie Durand');
+    expect(authors[0]!.knownNames).not.toContain('a.riviere');
+  });
+
+  it('garde malgré tout la personne d\'une fiche reconstituée seule', () => {
+    // Rien à semer n'est pas une raison de la perdre : la clé est déclarée, donc
+    // `toAuthors()` l'énumère et retombe de lui-même sur la partie locale.
+    const resolver = new IdentityResolver();
+    resolver.adoptAll([{ ...known, displayName: 'a.riviere', knownNames: [], knownEmails: [] }]);
+
+    const authors = resolver.toAuthors(BOTS);
+    expect(authors).toHaveLength(1);
+    expect(authors[0]!.displayName).toBe('a.riviere');
+  });
+
+  it('réévalue le statut de robot d\'une fiche réamorcée', () => {
+    const resolver = new IdentityResolver();
+    resolver.adopt({
+      id: 'renovate@example.com',
+      displayName: 'Renovate',
+      primaryEmail: 'renovate@example.com',
+      identityKeys: ['renovate@example.com'],
+      knownNames: ['Renovate'],
+      knownEmails: ['renovate@example.com'],
+      isBot: false,
+    });
+    expect(resolver.toAuthors(BOTS)[0]!.isBot).toBe(true);
   });
 });
 

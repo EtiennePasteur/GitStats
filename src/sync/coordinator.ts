@@ -94,14 +94,13 @@ export class SyncCoordinator {
   constructor(options: SyncCoordinatorOptions) {
     this.options = options;
 
-    // Le résolveur est réamorcé avec les identités déjà connues pour que les
-    // fusions (manuelles comprises) survivent à un rechargement de page.
+    // Le résolveur est réamorcé avec TOUTES les personnes déjà connues, pas
+    // seulement leurs fusions : `flushAuthors()` réécrit le magasin entier à
+    // partir de ce que le résolveur contient, et un sync incrémental n'observe
+    // que les dépôts qui ont bougé. `adoptAll()` plutôt qu'une boucle sur
+    // `adopt()` : l'ordre d'adoption décide de l'élection du nom.
     this.resolver = new IdentityResolver(options.dataset.meta?.manualAliases ?? {});
-    for (const author of options.dataset.authors.values()) {
-      for (const key of author.identityKeys) {
-        if (key !== author.id) this.resolver.union(key, author.id, author.id);
-      }
-    }
+    this.resolver.adoptAll(options.dataset.authors.values());
 
     for (const { instance, token, fetchImpl, retry } of options.targets) {
       // Un limiteur PAR instance : les quotas sont propres à chaque serveur.

@@ -172,6 +172,80 @@ export class IdentityResolver {
   }
 
   /**
+   * Réamorce le résolveur avec toutes les fiches connues. **Point d'entrée** :
+   * `adopt()` ne se prend une par une que dans les tests.
+   *
+   * Les fiches RACINES passent d'abord, et ce n'est pas un détail
+   * d'ordonnancement : les noms réamorcés pèsent tous zéro, donc `toAuthors()`
+   * les départage à l'ordre d'insertion. Adopter une identité absorbée avant la
+   * fiche qui la conserve ferait gagner SON nom — fusionner Amélie dans Marie
+   * renommerait la personne « Amélie Rivière » au sync suivant, alors que
+   * l'utilisateur a justement choisi de garder Marie. Le magasin étant relu
+   * trié par `id`, l'ordre d'arrivée est arbitraire : c'est ici qu'il se fixe.
+   */
+  adoptAll(authors: Iterable<StoredAuthor>): void {
+    const known = [...authors];
+    for (const author of known) if (this.find(author.id) === author.id) this.adopt(author);
+    for (const author of known) if (this.find(author.id) !== author.id) this.adopt(author);
+  }
+
+  /**
+   * Réintègre une personne déjà connue, sans la compter comme observée.
+   *
+   * Indispensable avant un sync incrémental : celui-ci ne visite que les dépôts
+   * qui ont bougé, donc il n'observe qu'une poignée d'identités. Comme
+   * `toAuthors()` n'énumère que ce que le résolveur connaît et que
+   * `replaceAuthors()` remplace TOUT le magasin, un résolveur non réamorcé fait
+   * disparaître en silence toute personne restée tranquille depuis le passage
+   * précédent — ses seaux, eux, restent et pointent alors dans le vide.
+   *
+   * Réamorcer par les seules `identityKeys` ne suffit pas : une personne mono-
+   * adresse n'a qu'une clé, égale à son `id`, donc aucune fusion à rejouer et
+   * aucune trace dans le résolveur. C'est bien elle — le cas courant — qui
+   * disparaissait.
+   *
+   * Les compteurs par nom ne sont pas persistés : les noms réamorcés pèsent donc
+   * zéro. Le nom élu au passage précédent est inséré en tête, ce qui le laisse
+   * gagner l'élection tant que ce sync n'observe rien de plus fréquent — d'où
+   * l'ordre imposé par `adoptAll()`.
+   *
+   * On déclare les `identityKeys` **sans les unir**, et c'est essentiel :
+   * `observe()` n'unit jamais rien, le constructeur est le seul à le faire, donc
+   * une fiche ne porte plusieurs clés QUE parce qu'un alias manuel les a réunies.
+   * `identityKeys` est de la donnée dérivée, `manualAliases` la source de vérité.
+   * Les rejouer comme des fusions rendait le regroupement définitif : « Annuler »
+   * retirait bien l'alias, mais le sync suivant le reconstituait depuis la fiche.
+   * La fusion redevenait active tout en disparaissant de la liste des réglages,
+   * donc impossible à défaire.
+   */
+  adopt(author: StoredAuthor): void {
+    this.ensure(author.id);
+    for (const key of author.identityKeys) this.ensure(key);
+
+    // Une fiche reconstituée par `reconcileAuthors` ne sait rien : son
+    // `displayName` n'est que la partie locale de l'adresse, faute de nom
+    // observé. La semer ferait passer « a.riviere » pour un nom collecté et,
+    // sur une identité absorbée, l'imposerait à la personne conservée. Ne rien
+    // semer est exactement équivalent : `toAuthors()` retombe déjà sur
+    // `localPart(root)` quand aucun nom n'est connu.
+    if (author.knownNames.length === 0 && author.displayName === localPart(author.id)) return;
+
+    // Une fusion manuelle encore active a déjà rattaché cette fiche à une autre
+    // racine : c'est celle-là qui doit hériter des noms.
+    const root = this.find(author.id);
+    const names = this.names.get(root)!;
+    for (const name of [author.displayName, ...author.knownNames]) {
+      const trimmed = name.trim();
+      if (trimmed !== '' && !names.has(trimmed)) names.set(trimmed, 0);
+    }
+    const emails = this.emails.get(root)!;
+    for (const email of [author.primaryEmail, ...author.knownEmails]) {
+      const trimmed = email.trim().toLowerCase();
+      if (trimmed !== '') emails.add(trimmed);
+    }
+  }
+
+  /**
    * Enregistre une identité observée et renvoie l'identifiant de la personne.
    * `weight` = nombre de commits, utilisé pour élire le nom d'affichage.
    */

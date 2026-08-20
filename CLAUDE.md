@@ -6,7 +6,7 @@ Personal Access Token, agrège, et stocke en IndexedDB.
 
 ```bash
 npm run dev          # http://localhost:4300/GitStats/ (base GitHub Pages)
-npm test             # 247 tests, ~0,8 s
+npm test             # 270 tests, ~1,6 s
 npm run lint         # tsc -b --noEmit (strict, noUncheckedIndexedAccess)
 npm run build
 npm run demo:data    # jeu de démo → demo-gitstats.json (2 instances, 234 dépôts, 1 miroir)
@@ -124,11 +124,61 @@ dépend :
   durablement les comparaisons sans que rien ne le signale.
 - Les fusions sont **résolues à la lecture** (`filterBuckets(…, aliases)`) : effet
   immédiat et réversible. Ne jamais réécrire les seaux.
+- `manualAliases` est **la** source de vérité d'une fusion ; `author.identityKeys`
+  n'en est que la trace **dérivée**. `observe()` n'unit jamais deux adresses — le
+  seul `union()` vient du rejeu des alias — donc une fiche à plusieurs clés
+  *signifie* une décision manuelle. Confondre les deux a coûté un vrai bug : le
+  réamorçage du résolveur rejouait `identityKeys` comme des fusions, ce qui rendait
+  le regroupement **indéfectible**. « Annuler » retirait bien l'alias, mais le sync
+  suivant le reconstituait depuis la fiche : la fusion restait active tout en
+  disparaissant des réglages (qui listent `manualAliases`), donc sans bouton pour
+  la défaire. Symptôme visible : la fiche d'une personne affiche « Identités
+  rattachées » alors qu'aucune fusion n'apparaît dans les réglages.
+- Les deux faces sont maintenues par deux fonctions de `store/dataset.ts`, à garder
+  en vis-à-vis :
+  - `recoverManualAliases()` — au chargement et à l'import, une fiche à plusieurs
+    clés sans alias correspondant fait **reconstituer l'alias**. La décision
+    redevient visible et annulable, au lieu d'être tranchée à la place de
+    l'utilisateur.
+  - `alignAuthorsToAliases()` — appelée par `setManualAliases()`, elle **détache**
+    les identités qu'aucun alias ne justifie plus. Sans elle, « Annuler » resterait
+    à moitié appliqué et `recoverManualAliases` rétablirait l'alias au chargement
+    suivant : l'annulation serait annulée. Les deux se referment l'une sur l'autre,
+    ne pas en retirer une seule.
 
 ### Sync multi-instances
 - `db.replaceAuthors()` **remplace tout le magasin**. Seul le `SyncCoordinator`
   a le droit de l'appeler ; un moteur qui le ferait effacerait les auteurs des
   autres instances.
+- Corollaire, et c'est le bug qui a vidé un parc de 738 contributeurs d'un coup :
+  puisque `flushAuthors()` réécrit tout le magasin à partir du seul contenu du
+  résolveur, le coordinateur doit le **réamorcer avec toutes les personnes déjà
+  connues** (`IdentityResolver.adopt()`), pas seulement avec leurs fusions. Un
+  sync incrémental ne visite que les dépôts qui ont bougé : il n'observe donc
+  presque personne, et tout ce qui n'a pas été réamorcé disparaît. Réamorcer par
+  les seules `identityKeys` ne suffit pas — une personne mono-adresse n'a qu'une
+  clé, égale à son `id`, donc aucune fusion à rejouer et aucune trace dans le
+  résolveur. C'est exactement le cas courant qui sautait.
+- Le réamorçage passe par `adoptAll()`, **jamais** par une boucle sur `adopt()` :
+  les compteurs par nom ne sont pas persistés, les noms réamorcés pèsent donc tous
+  zéro et `toAuthors()` les départage à **l'ordre d'insertion**. Comme le magasin
+  se relit trié par `id`, cet ordre est arbitraire : adopter une identité absorbée
+  avant la fiche qui la conserve lui fait gagner l'élection. Fusionner Amélie dans
+  Marie renommait ainsi la personne « Amélie Rivière » au sync suivant — et
+  « a.riviere » quand l'identité absorbée n'avait qu'une fiche reconstituée par
+  `reconcileAuthors`. D'où aussi le garde-fou d'`adopt()` : une fiche sans
+  `knownNames` dont le `displayName` n'est que `localPart(id)` ne sème rien, son
+  nom étant fabriqué et non collecté.
+- `reconcileAuthors()` (`store/dataset.ts`) est le filet, appliqué au chargement
+  de la base comme à l'import d'un `.json` : tout `authorId` cité par un seau,
+  un aperçu ou un commit récent mais absent de la table retrouve une fiche
+  minimale. Un `authorId` orphelin ne perd pas les commits, il rend la personne
+  **muette** — plus de nom (`authorName` retombe sur l'adresse brute), plus de
+  détection de robot (`filters.excludeBots` teste `author.isBot`), plus de
+  suggestion de fusion (`suggestMerges` n'itère que sur les fiches). Le filet ne
+  remplace pas une collecte : les variantes de noms ne reviennent que de GitLab,
+  via « Tout resynchroniser » (seul chemin qui refait la vague 1, `needsOverview`
+  étant faux sur un dépôt déjà couvert).
 - Le `IdentityResolver` est **partagé** entre instances, injecté par le
   coordinateur.
 - **Un `RateLimiter` par instance** : les quotas sont per-serveur.
@@ -139,6 +189,14 @@ dépend :
   auteur et par date tournent en mémoire (< 100 ms sur 150 000 seaux). Deux index
   superflus coûtaient **15 s sur un import de 30 000 seaux** (24 s → 9 s après
   suppression + écriture par lots de 2 000).
+- L'import reste néanmoins **dominé par le débit d'écriture d'IndexedDB**, et il
+  faut le savoir avant de chercher un coupable dans le code : mesuré sur un export
+  réel de 39 Mo (1 712 dépôts, 108 433 seaux, 64 132 commits récents), le total
+  atteint ~100 s, dont ~87 s de `replaceDaily` et ~55 s de `replaceRecentCommits`
+  (les deux en parallèle). Un banc de mesure en page a donné 174 à 526 µs/ligne
+  sans corrélation lisible avec la taille de lot ni la présence d'index : c'est du
+  bruit disque, le lot de 2 000 est déjà le meilleur des configurations testées.
+  À optimiser, viser le nombre de lignes (fenêtre, dépôts ignorés), pas la boucle.
 - Schéma v1, **aucune migration** : le bloc `upgrade` ne fait que créer les
   magasins. Rien ici ne sait lire un état produit par une version passée, parce
   qu'il n'y a aucune donnée à préserver — une base d'un schéma antérieur se
